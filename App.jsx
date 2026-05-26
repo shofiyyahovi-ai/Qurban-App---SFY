@@ -117,7 +117,7 @@ const SEED_PANITIA = [
     id: "USR_admin",
     nama: "Admin",
     username: "admin",
-    passwordHash: hashPassword("admin1234"),
+    passwordHash: hashPassword("panitiaqurban2026"),
     role: "admin",
     status: "aktif",
     mustChangePassword: true,
