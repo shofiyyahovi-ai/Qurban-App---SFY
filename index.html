@@ -2,13 +2,109 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Qurban App untuk pencatatan data qurban oleh panitia masjid." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Qurban App SFY — aplikasi pencatatan dan manajemen data qurban untuk panitia masjid." />
+    <meta name="theme-color" content="#0C0F0A" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Qurban App" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
     <title>Qurban App SFY</title>
+
+    <!-- Favicon (inline SVG, no extra request) -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231B4332'/%3E%3Ctext x='50%25' y='54%25' font-size='40' text-anchor='middle' dominant-baseline='middle'%3E%F0%9F%95%8C%3C/text%3E%3C/svg%3E"
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* Splash shown sebelum React mount supaya tidak ada layar putih */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0c0f0a;
+        color: #e8f5e9;
+      }
+      #root:empty + #app-splash,
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+            1200px 600px at 50% -10%,
+            #1b4332 0%,
+            transparent 60%
+          ),
+          #0c0f0a;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        z-index: 999;
+        transition: opacity 0.4s ease;
+        font-family:
+          "Inter", system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
+      }
+      #app-splash .logo {
+        font-size: 56px;
+        line-height: 1;
+        filter: drop-shadow(0 4px 24px rgba(76, 175, 80, 0.35));
+      }
+      #app-splash .title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #f1f8f0;
+        letter-spacing: -0.3px;
+      }
+      #app-splash .sub {
+        font-size: 12px;
+        color: #607d6b;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      #app-splash .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 99px;
+        background: #4caf50;
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(0.6);
+          opacity: 0.4;
+        }
+        50% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      #root:not(:empty) + #app-splash {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
   </head>
 
   <body>
     <div id="root"></div>
+    <div id="app-splash" aria-hidden="true">
+      <div class="logo">🕌</div>
+      <div class="title">Qurban App</div>
+      <div class="dot"></div>
+      <div class="sub">memuat...</div>
+    </div>
     <script type="module" src="/main.jsx"></script>
   </body>
 </html>
