@@ -1,0 +1,125 @@
+/* ─────────────────────────────────────────────────────────────
+   Global styles & resets untuk Qurban App SFY
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #0c0f0a;
+  --surface: #131810;
+  --border: #1e2b1a;
+  --text: #e8f5e9;
+  --muted: #607d6b;
+  --green: #4caf50;
+  --green-dark: #1b4332;
+  font-family:
+    "Inter", system-ui, -apple-system, "Segoe UI", "Noto Sans", "Helvetica Neue",
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: inherit;
+  font-feature-settings: "ss01", "cv11";
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tipografi heading */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.01em;
+}
+
+/* Tombol & input umum */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+}
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* Sembunyikan scrollbar horizontal pada nav */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #233022;
+  border-radius: 99px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2f4530;
+}
+
+/* Seleksi teks */
+::selection {
+  background: var(--green-dark);
+  color: var(--text);
+}
+
+/* Link */
+a {
+  color: var(--green);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Hilangkan style default <hr> */
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* Safe-area iOS notch */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
