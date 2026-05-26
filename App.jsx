@@ -262,174 +262,449 @@ function ImportExcelModal({
     setStep("done");
   };
 
-  // ── UI helpers ──────────────────────────────────────────────
-  const SummaryCard = ({ icon, label, count, errors, color }) => (
-    <div style={{
-      background: count > 0 ? color + "18" : "#0A0D09",
-      border: `1px solid ${count > 0 ? color + "44" : C.border}`,
-      borderRadius: 10, padding: "12px 16px", flex: 1, minWidth: 100,
-    }}>
-      <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
-      <div style={{ fontWeight: 900, fontSize: 22, color: count > 0 ? color : C.muted }}>{count}</div>
-      <div style={{ fontSize: 11, color: C.muted }}>{label}</div>
-      {errors > 0 && (
-        <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>⚠ {errors} error</div>
-      )}
+  // ── Drag & drop handlers ────────────────────────────────────
+  const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.classList.add("dz-dragover"); };
+  const handleDragLeave = (e) => { e.currentTarget.classList.remove("dz-dragover"); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove("dz-dragover");
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile({ target: { files: [f] } });
+  };
+
+  // ── UI: Step Indicator ───────────────────────────────────────
+  const steps = ["upload", "preview", "done"];
+  const stepIdx = steps.indexOf(step);
+  const stepLabels = ["Upload", "Preview", "Selesai"];
+
+  const Stepper = () => (
+    <div style={{ display: "flex", alignItems: "center", marginBottom: 28 }}>
+      {stepLabels.map((label, i) => {
+        const isDone   = i < stepIdx;
+        const isActive = i === stepIdx;
+        return (
+          <React.Fragment key={i}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: i < 2 ? "none" : 1 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, fontWeight: 500,
+                border: isDone ? "1.5px solid #3a6e3a" : isActive ? "1.5px solid #c8b46a" : "1.5px solid #2a4a2a",
+                background: isDone ? "#1e4a1e" : isActive ? "#c8b46a18" : "#0f1a0f",
+                color: isDone ? "#6abf6a" : isActive ? "#c8b46a" : "#4a6a4a",
+                transition: "all 0.25s",
+                position: "relative", zIndex: 2,
+              }}>
+                {isDone ? "✓" : i + 1}
+              </div>
+              <div style={{
+                fontSize: 11, marginTop: 6,
+                color: isDone ? "#6abf6a" : isActive ? "#c8b46a" : "#4a6a4a",
+                transition: "color 0.25s",
+              }}>{label}</div>
+            </div>
+            {i < stepLabels.length - 1 && (
+              <div style={{
+                flex: 1, height: 1.5, margin: "0 4px", marginBottom: 18,
+                background: "#1a2e1a", position: "relative", overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute", top: 0, left: 0, height: "100%",
+                  width: i < stepIdx ? "100%" : "0%",
+                  background: "#3a6e3a", transition: "width 0.4s ease",
+                }} />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 
-  const ErrorList = ({ errors, label }) => {
-    if (!errors?.length) return null;
+  // ── UI: Summary Card ─────────────────────────────────────────
+  const SummaryCard = ({ icon, label, count, errors, accentColor, total }) => {
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    const hasErr = errors > 0;
     return (
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginBottom: 6 }}>
-          ⚠ Error di sheet {label} ({errors.length} baris):
+      <div style={{
+        background: "#0a130a",
+        border: `0.5px solid ${hasErr ? "#5a1e1e" : count > 0 ? "#3a5e3a" : "#2a4a2a"}`,
+        borderTop: hasErr ? "2px solid #9e3a1e" : `2px solid ${count > 0 ? accentColor : "#2a4a2a"}`,
+        borderRadius: 10, padding: "14px 12px", flex: 1,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 7,
+            background: "#1a3a1a", color: accentColor,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15,
+          }}>{icon}</div>
+          {hasErr
+            ? <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#3a1212", color: "#e06060", fontWeight: 500 }}>
+                ⚠ {errors} error
+              </span>
+            : count > 0
+              ? <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#1e4a1e", color: "#6abf6a", fontWeight: 500 }}>
+                  Siap
+                </span>
+              : <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#1a2e1a", color: "#4a6a4a", fontWeight: 500 }}>
+                  Kosong
+                </span>
+          }
         </div>
-        {errors.slice(0, 5).map((e, i) => (
-          <div key={i} style={{
-            fontSize: 12, color: C.orange,
-            background: "#3B000022", borderRadius: 6, padding: "6px 10px", marginBottom: 4,
-          }}>
-            <strong>Baris {e.baris}</strong> ({e.nama}): {e.masalah.join(", ")}
+        <div style={{ fontSize: 26, fontWeight: 500, color: accentColor, lineHeight: 1, marginBottom: 2 }}>{count}</div>
+        <div style={{ fontSize: 11, color: "#4a6a4a", marginBottom: 10 }}>{label}</div>
+        <div style={{ height: 3, background: "#1a2e1a", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 2,
+            width: pct + "%",
+            background: hasErr ? "#9e3a1e" : accentColor,
+            transition: "width 0.6s ease",
+          }} />
+        </div>
+      </div>
+    );
+  };
+
+  // ── UI: Error Accordion ──────────────────────────────────────
+  const [openAccordions, setOpenAccordions] = React.useState({});
+  const toggleAcc = (key) => setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const ErrorAccordion = ({ errors, label }) => {
+    if (!errors?.length) return null;
+    const open = openAccordions[label] !== false; // default open
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div
+          onClick={() => toggleAcc(label)}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "9px 12px",
+            background: "#2a0e0e",
+            border: "0.5px solid #5a1e1e",
+            borderRadius: open ? "8px 8px 0 0" : 8,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#d48080", fontWeight: 500 }}>
+            ⚠ Error di sheet {label}
+            <span style={{ fontSize: 11, padding: "2px 8px", background: "#5a1e1e", color: "#e08080", borderRadius: 10 }}>
+              {errors.length} baris
+            </span>
           </div>
-        ))}
-        {errors.length > 5 && (
-          <div style={{ fontSize: 11, color: C.muted }}>...dan {errors.length - 5} error lainnya</div>
+          <span style={{
+            fontSize: 13, color: "#8a4a4a",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            display: "inline-block", transition: "transform 0.2s",
+          }}>▾</span>
+        </div>
+        {open && (
+          <div style={{
+            background: "#1a0808", border: "0.5px solid #5a1e1e", borderTop: "none",
+            borderRadius: "0 0 8px 8px", padding: "10px 12px",
+          }}>
+            {errors.slice(0, 5).map((e, i) => (
+              <div key={i} style={{
+                padding: "6px 0",
+                borderBottom: i < Math.min(errors.length, 5) - 1 ? "0.5px solid #2a1010" : "none",
+                fontSize: 12, color: "#c08080", lineHeight: 1.5,
+              }}>
+                <strong style={{ color: "#e08080" }}>Baris {e.baris}</strong> ({e.nama}): {e.masalah.join(", ")}
+              </div>
+            ))}
+            {errors.length > 5 && (
+              <div style={{ fontSize: 11, color: "#6a3a3a", marginTop: 6 }}>
+                ...dan {errors.length - 5} error lainnya
+              </div>
+            )}
+          </div>
         )}
       </div>
     );
   };
 
-  return (
-    <Modal onClose={onClose} title="📥 Import dari Excel">
+  // ── Inline styles ────────────────────────────────────────────
+  const S = {
+    btn: (color, bg) => ({
+      padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+      cursor: "pointer", border: `1px solid ${color}`, background: bg,
+      color, display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s",
+    }),
+  };
 
-      {/* STEP: UPLOAD */}
+  return (
+    <Modal onClose={onClose} title="Import dari Excel">
+
+      {/* ── Step Indicator ── */}
+      <Stepper />
+
+      {/* ══ STEP: UPLOAD ══════════════════════════════════════ */}
       {step === "upload" && (
         <div>
           {/* Drop zone */}
           <div
+            className="import-dropzone"
             onClick={() => fileRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             style={{
-              border: `2px dashed ${error ? C.red : C.green}`,
-              borderRadius: 12, padding: "32px 20px",
+              border: `1.5px dashed ${error ? "#9e3a1e" : file ? "#3a6e3a" : "#2a5a2a"}`,
+              borderStyle: file ? "solid" : "dashed",
+              borderRadius: 12, padding: "36px 24px",
               textAlign: "center", cursor: "pointer",
-              background: "#0A0D09",
-              marginBottom: 16,
-              transition: "border-color 0.2s",
+              background: file ? "#0d1d0d" : "#0a130a",
+              marginBottom: 16, transition: "border-color 0.2s, background 0.2s",
             }}
           >
-            <div style={{ fontSize: 40, marginBottom: 8 }}>📂</div>
-            <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>
-              {file ? file.name : "Klik untuk pilih file Excel"}
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: "#1a3a1a", border: "0.5px solid #2a5a2a",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 14px", fontSize: 22, color: file ? "#6abf6a" : "#4a8a4a",
+            }}>📂</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#c0d4c0", marginBottom: 6 }}>
+              {file ? file.name : "Klik atau seret file Excel ke sini"}
             </div>
-            <div style={{ fontSize: 12, color: C.muted }}>
-              Format: .xlsx atau .xls · Gunakan template yang sudah disediakan
+            <div style={{ fontSize: 12, color: "#4a6a4a" }}>
+              Format .xlsx atau .xls · gunakan template yang disediakan
             </div>
+            {file && (
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12,
+                padding: "5px 12px", background: "#1e3e1e", border: "0.5px solid #3a6a3a",
+                borderRadius: 20, fontSize: 12, color: "#8abf8a",
+              }}>
+                ✓ File dipilih
+              </div>
+            )}
             <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: "none" }} />
           </div>
 
           {error && (
-            <div style={{ color: C.red, fontSize: 13, marginBottom: 14, padding: "10px 14px", background: "#3B000033", borderRadius: 8 }}>
-              ⚠️ {error}
+            <div style={{
+              color: "#e06060", fontSize: 13, marginBottom: 14,
+              padding: "10px 14px", background: "#3a100833",
+              border: "0.5px solid #9e3a1e55", borderRadius: 8,
+              display: "flex", alignItems: "flex-start", gap: 8,
+            }}>
+              <span style={{ flexShrink: 0 }}>⚠</span> {error}
             </div>
           )}
 
           {loading && (
-            <div style={{ textAlign: "center", color: C.muted, padding: 16, fontSize: 14 }}>
+            <div style={{ textAlign: "center", color: "#4a6a4a", padding: 16, fontSize: 14 }}>
               ⏳ Membaca file...
             </div>
           )}
 
-          <div style={{ padding: "12px 16px", background: C.greenDark + "44", borderRadius: 8, border: `1px solid ${C.green}33`, fontSize: 12, color: C.greenLight }}>
-            💡 Belum punya template? Download template Excel di menu Pengaturan → Template Excel
+          <div style={{
+            display: "flex", gap: 10, alignItems: "flex-start",
+            padding: "12px 14px", background: "#c8b46a0e",
+            border: "0.5px solid #c8b46a33", borderRadius: 8,
+            fontSize: 12, color: "#a09050", lineHeight: 1.5,
+          }}>
+            <span style={{ color: "#c8b46a", flexShrink: 0 }}>💡</span>
+            Belum punya template? Download di{" "}
+            <strong style={{ color: "#c8b46a" }}>Pengaturan → Template Excel</strong>
           </div>
         </div>
       )}
 
-      {/* STEP: PREVIEW */}
+      {/* ══ STEP: PREVIEW ═════════════════════════════════════ */}
       {step === "preview" && preview && (
         <div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-            📄 <strong style={{ color: C.white }}>{file?.name}</strong>
+          {/* File info bar */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 12px", background: "#1a2e1a",
+            border: "0.5px solid #2a4a2a", borderRadius: 8, marginBottom: 16,
+            fontSize: 13, color: "#8aaf8a",
+          }}>
+            <span>📄</span>
+            <span style={{ flex: 1 }}>{file?.name}</span>
+            <span style={{ fontSize: 11, color: "#3a6a3a" }}>Terbaca</span>
+            <span style={{ color: "#4a9e4a" }}>✓</span>
           </div>
 
           {/* Summary cards */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-            <SummaryCard icon="🐾" label="Hewan"    count={preview.hewan.data.length}    errors={preview.hewan.errors.length}    color={C.gold} />
-            <SummaryCard icon="💳" label="Mudhohi"  count={preview.mudhohi.data.length}  errors={preview.mudhohi.errors.length}  color={C.blue} />
-            <SummaryCard icon="🎟️" label="Mustahiq" count={preview.mustahiq.data.length} errors={preview.mustahiq.errors.length} color={C.orange} />
+          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+            <SummaryCard
+              icon="🐾" label="Hewan"
+              count={preview.hewan.data.length}
+              errors={preview.hewan.errors.length}
+              accentColor="#c8b46a"
+              total={preview.hewan.data.length + preview.hewan.errors.length}
+            />
+            <SummaryCard
+              icon="👥" label="Mudhohi"
+              count={preview.mudhohi.data.length}
+              errors={preview.mudhohi.errors.length}
+              accentColor="#6a9abf"
+              total={preview.mudhohi.data.length + preview.mudhohi.errors.length}
+            />
+            <SummaryCard
+              icon="🎟" label="Mustahiq"
+              count={preview.mustahiq.data.length}
+              errors={preview.mustahiq.errors.length}
+              accentColor="#9a8acf"
+              total={preview.mustahiq.data.length + preview.mustahiq.errors.length}
+            />
           </div>
 
-          {/* Errors */}
+          {/* Error accordions */}
           {totalErrors > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <ErrorList errors={preview.hewan.errors}    label="Hewan" />
-              <ErrorList errors={preview.mudhohi.errors}  label="Mudhohi" />
-              <ErrorList errors={preview.mustahiq.errors} label="Mustahiq" />
-              <div style={{ fontSize: 12, color: C.orange, padding: "8px 12px", background: "#3B1A0022", borderRadius: 8, border: `1px solid ${C.orange}33` }}>
-                ⚠️ Baris yang error akan <strong>dilewati</strong>. Hanya {totalImport} data valid yang akan diimport.
+            <div style={{ marginBottom: 12 }}>
+              <ErrorAccordion errors={preview.hewan.errors}    label="Hewan" />
+              <ErrorAccordion errors={preview.mudhohi.errors}  label="Mudhohi" />
+              <ErrorAccordion errors={preview.mustahiq.errors} label="Mustahiq" />
+              <div style={{
+                fontSize: 12, color: "#a09050",
+                padding: "8px 12px", marginTop: 8,
+                background: "#c8b46a0a", border: "0.5px solid #c8b46a22",
+                borderRadius: 6, display: "flex", alignItems: "flex-start", gap: 8,
+              }}>
+                <span style={{ color: "#c8b46a", flexShrink: 0 }}>ℹ</span>
+                Baris error akan <strong style={{ color: "#c8b46a" }}>dilewati</strong>. {totalImport} data valid akan diimport.
               </div>
             </div>
           )}
 
           {totalImport === 0 && (
-            <div style={{ color: C.red, fontSize: 14, textAlign: "center", padding: 16 }}>
-              ❌ Tidak ada data valid yang bisa diimport.
+            <div style={{
+              color: "#e06060", fontSize: 14, textAlign: "center",
+              padding: 16, background: "#2a080833", borderRadius: 8,
+              border: "0.5px solid #9e3a1e55", marginBottom: 12,
+            }}>
+              ✗ Tidak ada data valid yang bisa diimport.
             </div>
           )}
 
-          {/* Mode pilihan */}
+          {/* Mode import */}
           {totalImport > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <label style={css.label}>Mode Import</label>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ fontSize: 11, color: "#4a6a4a", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Mode import
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                 {[
-                  { val: "append", icon: "➕", label: "Tambahkan ke data yang ada" },
-                  { val: "replace", icon: "🔄", label: "Ganti semua data (hapus yang lama)" },
+                  { val: "append", icon: "＋", name: "Tambahkan", desc: "Gabung dengan data yang ada" },
+                  { val: "replace", icon: "↺", name: "Ganti Semua", desc: "Hapus data lama, pakai ini" },
                 ].map(m => (
-                  <button
+                  <div
                     key={m.val}
                     onClick={() => setMode(m.val)}
                     style={{
-                      flex: 1, padding: "10px 8px", borderRadius: 8, cursor: "pointer",
-                      background: mode === m.val ? (m.val === "replace" ? C.red + "22" : C.green + "22") : "#0A0D09",
-                      border: `1px solid ${mode === m.val ? (m.val === "replace" ? C.red : C.green) : C.border}`,
-                      color: mode === m.val ? (m.val === "replace" ? C.red : C.greenLight) : C.muted,
-                      fontSize: 12, fontWeight: mode === m.val ? 700 : 400,
+                      padding: "12px", borderRadius: 8, cursor: "pointer",
+                      background: mode === m.val
+                        ? (m.val === "replace" ? "#2e1010" : "#1a3e1a")
+                        : "#0a130a",
+                      border: `1px solid ${mode === m.val
+                        ? (m.val === "replace" ? "#9e3a1e" : "#4a9e4a")
+                        : "#2a4a2a"}`,
+                      transition: "all 0.15s",
                     }}
                   >
-                    {m.icon} {m.label}
-                  </button>
+                    <div style={{ fontSize: 18, marginBottom: 6 }}>{m.icon}</div>
+                    <div style={{
+                      fontSize: 13, fontWeight: 500, marginBottom: 2,
+                      color: mode === m.val
+                        ? (m.val === "replace" ? "#e06060" : "#8abf8a")
+                        : "#c0d4c0",
+                    }}>{m.name}</div>
+                    <div style={{ fontSize: 11, color: "#4a6a4a" }}>{m.desc}</div>
+                  </div>
                 ))}
               </div>
               {mode === "replace" && (
-                <div style={{ fontSize: 12, color: C.red, marginTop: 6 }}>
-                  ⚠️ Semua data hewan, mudhohi, dan mustahiq yang sudah ada akan dihapus!
+                <div style={{
+                  padding: "8px 12px", background: "#3a100833",
+                  border: "0.5px solid #9e3a1e55", borderRadius: 6,
+                  fontSize: 12, color: "#e06060",
+                  display: "flex", alignItems: "flex-start", gap: 8,
+                }}>
+                  <span style={{ flexShrink: 0 }}>⚠</span>
+                  Semua data hewan, mudhohi, dan mustahiq yang ada akan terhapus permanen.
                 </div>
               )}
             </div>
           )}
 
+          {/* Action buttons */}
           <div style={{ display: "flex", gap: 8 }}>
-            <Btn color={C.muted} onClick={() => setStep("upload")} style={{ flex: 1 }}>← Kembali</Btn>
+            <button
+              onClick={() => setStep("upload")}
+              style={{
+                ...S.btn("#4a6a4a", "transparent"),
+                border: "1px solid #2a4a2a", color: "#6a8a6a",
+              }}
+            >
+              ← Kembali
+            </button>
             {totalImport > 0 && (
-              <Btn color={mode === "replace" ? C.red : C.green} onClick={doImport} style={{ flex: 2 }}>
-                {mode === "replace" ? "⚠️" : "✅"} Import {totalImport} Data
-              </Btn>
+              <button
+                onClick={doImport}
+                style={{
+                  ...S.btn(
+                    mode === "replace" ? "#e06060" : "#c0e0c0",
+                    mode === "replace" ? "#4a1818" : "#2a5e2a",
+                  ),
+                  flex: 1, border: `1px solid ${mode === "replace" ? "#7a2e2e" : "#3a7e3a"}`,
+                  justifyContent: "center",
+                }}
+              >
+                {mode === "replace" ? "↺" : "✓"} Import {totalImport} Data
+              </button>
             )}
           </div>
         </div>
       )}
 
-      {/* STEP: DONE */}
+      {/* ══ STEP: DONE ════════════════════════════════════════ */}
       {step === "done" && (
-        <div style={{ textAlign: "center", padding: "20px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-          <h3 style={{ color: C.white, marginBottom: 8 }}>Import Berhasil!</h3>
-          <div style={{ color: C.muted, fontSize: 14, marginBottom: 20 }}>
-            {preview.hewan.data.length} hewan · {preview.mudhohi.data.length} mudhohi · {preview.mustahiq.data.length} mustahiq berhasil diimport.
+        <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: "#1a3e1a", border: "1.5px solid #3a7a3a",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 16px", fontSize: 28, color: "#6abf6a",
+          }}>✓</div>
+          <div style={{ fontSize: 17, fontWeight: 500, color: "#c8e8c8", marginBottom: 8 }}>Import Berhasil!</div>
+          <div style={{ fontSize: 13, color: "#4a6a4a", marginBottom: 20, lineHeight: 1.6 }}>
+            Data berhasil ditambahkan ke sistem Qurban.
           </div>
-          <Btn color={C.green} onClick={onClose} style={{ width: "100%" }}>Tutup</Btn>
+
+          {/* Done stats */}
+          <div style={{
+            display: "flex", border: "0.5px solid #2a4a2a",
+            borderRadius: 10, overflow: "hidden", marginBottom: 20,
+            background: "#0a130a",
+          }}>
+            {[
+              { num: preview.hewan.data.length,    label: "Hewan",    color: "#c8b46a" },
+              { num: preview.mudhohi.data.length,  label: "Mudhohi",  color: "#6a9abf" },
+              { num: preview.mustahiq.data.length, label: "Mustahiq", color: "#9a8acf" },
+            ].map((s, i) => (
+              <div key={i} style={{
+                flex: 1, padding: "12px 8px", textAlign: "center",
+                borderRight: i < 2 ? "0.5px solid #2a4a2a" : "none",
+              }}>
+                <div style={{ fontSize: 22, fontWeight: 500, marginBottom: 2, color: s.color }}>{s.num}</div>
+                <div style={{ fontSize: 11, color: "#4a6a4a" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={onClose}
+            style={{
+              ...S.btn("#c0e0c0", "#2a5e2a"),
+              border: "1px solid #3a7e3a",
+              width: "100%", justifyContent: "center",
+            }}
+          >
+            Tutup
+          </button>
         </div>
       )}
     </Modal>
