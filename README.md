@@ -3,8 +3,8 @@
 Aplikasi web ringan untuk pencatatan dan manajemen data **qurban** oleh panitia masjid.
 Dibangun dengan **React + Vite**, berjalan sepenuhnya di sisi browser (data disimpan di `localStorage`).
 
-> 🕌 Cocok untuk panitia kecil–menengah yang ingin mencatat hewan, mudhohi (pequrban),
-> mustahiq, sesi pembagian, RAB, dan log aktivitas tanpa perlu server backend.
+> 🕌 Cocok untuk panitia kecil–menengah yang ingin mencatat hewan, shohibul qurban,
+> penerima daging, sesi pembagian, RAB, dan log aktivitas tanpa perlu server backend.
 
 ---
 
@@ -14,8 +14,8 @@ Dibangun dengan **React + Vite**, berjalan sepenuhnya di sisi browser (data disi
   opsi "Ingat saya" (7 hari), pemaksaan ganti password saat pertama login.
 - **Manajemen Hewan Qurban** — status alur (`Menunggu → Disembelih → Dikuliti → Selesai`),
   jenis (Sapi/Kambing/Domba), kapasitas per ekor.
-- **Mudhohi & Pembayaran** — pencatatan pequrban, status bayar (Lunas / Belum Lunas / Cicilan).
-- **Mustahiq & Sesi Distribusi** — pencatatan penerima dan sesi pembagian daging.
+- **Shohibul Qurban & Pembayaran** — pencatatan peserta qurban, status bayar (Lunas / Belum Lunas / Cicilan).
+- **Penerima Daging & Sesi Distribusi** — pencatatan penerima dan sesi pembagian daging.
 - **RAB (Rencana Anggaran)** — pencatatan dan verifikasi anggaran (admin).
 - **Notifikasi WhatsApp** — integrasi opsional dengan API [Fonnte](https://fonnte.com/).
 - **Audit Log** — semua aksi penting dicatat (maks. 500 entri terakhir).
@@ -83,8 +83,8 @@ Semua data disimpan di **`localStorage` browser** dengan key:
 | -------------------- | ---------------------------- |
 | `qurban_panitia`     | Daftar akun panitia          |
 | `qurban_hewan`       | Daftar hewan qurban          |
-| `qurban_mudhohi`     | Daftar pequrban              |
-| `qurban_mustahiq`    | Daftar mustahiq              |
+| `qurban_mudhohi`     | Daftar shohibul qurban       |
+| `qurban_mustahiq`    | Daftar penerima daging       |
 | `qurban_sesi`        | Sesi pembagian daging        |
 | `qurban_rab`         | Rencana Anggaran Biaya       |
 | `qurban_token`       | Token API Fonnte (opsional)  |
@@ -97,7 +97,7 @@ Semua data disimpan di **`localStorage` browser** dengan key:
 
 ## 📲 Integrasi WhatsApp (Opsional)
 
-Untuk mengirim notifikasi WA ke mudhohi, daftarkan token API
+Untuk mengirim notifikasi WA ke shohibul qurban, daftarkan token API
 [Fonnte](https://fonnte.com/) di halaman **Pengaturan** (khusus admin).
 
 ---
