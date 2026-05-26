@@ -1951,7 +1951,7 @@ export default function App() {
   const NAV = isAdmin ? NAV_ADMIN : NAV_BASE;
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Segoe UI', 'Noto Sans', sans-serif", color: C.text }}>
+    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: C.text }}>
       {/* Top bar */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
