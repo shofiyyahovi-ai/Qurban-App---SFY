@@ -39,7 +39,7 @@ const COL = {
   hewan:    "qurban_hewan",
   mudhohi:  "qurban_mudhohi",
   mustahiq: "qurban_mustahiq",
-  sesi:     "qurban_sesi":      "qurban_rab",
+  sesi:     "qurban_sesi",
   panitia:  "qurban_panitia",
   config:   "qurban_config",
 };
