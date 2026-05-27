@@ -1,6 +1,115 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ══════════════════════════════════════════════════════════════
+// FIREBASE SETUP
+// ══════════════════════════════════════════════════════════════
+import { initializeApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  writeBatch,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDPelgeAqP726-sZRKBFEhjw7rcyOfk9Fk",
+  authDomain: "qurban-app-1f8b7.firebaseapp.com",
+  projectId: "qurban-app-1f8b7",
+  storageBucket: "qurban-app-1f8b7.firebasestorage.app",
+  messagingSenderId: "216486969169",
+  appId: "1:216486969169:web:93bdd5b329483391c81d70",
+  measurementId: "G-HY9GT50DK0",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// ── Firestore collection helpers ──────────────────────────────
+// Each data type maps to a Firestore collection.
+// Documents use the item's `id` field as the document ID.
+const COL = {
+  hewan:    "qurban_hewan",
+  mudhohi:  "qurban_mudhohi",
+  mustahiq: "qurban_mustahiq",
+  sesi:     "qurban_sesi",
+  rab:      "qurban_rab",
+  auditlog: "qurban_auditlog",
+  panitia:  "qurban_panitia",
+  config:   "qurban_config",
+};
+
+// Write a single item to Firestore (upsert by item.id).
+async function fsSet(colName, item) {
+  if (!item?.id) return;
+  try {
+    await setDoc(doc(db, colName, item.id), item);
+  } catch (e) {
+    console.warn("fsSet failed", colName, e);
+  }
+}
+
+// Delete a single document from Firestore.
+async function fsDel(colName, id) {
+  if (!id) return;
+  try {
+    await deleteDoc(doc(db, colName, id));
+  } catch (e) {
+    console.warn("fsDel failed", colName, e);
+  }
+}
+
+// Replace an entire collection with a new array (batch write).
+async function fsReplaceAll(colName, items) {
+  try {
+    // Delete all existing docs first.
+    const snap = await getDocs(collection(db, colName));
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.delete(d.ref));
+    (items || []).forEach(item => {
+      if (item?.id) batch.set(doc(db, colName, item.id), item);
+    });
+    await batch.commit();
+  } catch (e) {
+    console.warn("fsReplaceAll failed", colName, e);
+  }
+}
+
+// Subscribe to a collection and call cb(array) on every change.
+// Returns an unsubscribe function.
+function fsSubscribe(colName, cb) {
+  return onSnapshot(collection(db, colName), snap => {
+    const items = snap.docs.map(d => d.data());
+    cb(items);
+  }, err => console.warn("fsSubscribe error", colName, err));
+}
+
+// ── Diff-aware Firestore sync helpers ─────────────────────────
+// These compare prev vs next arrays and only write changed/added
+// items and delete removed items, avoiding full re-writes.
+function fsSync(colName, prevArr, nextArr) {
+  const prevMap = Object.fromEntries((prevArr || []).map(x => [x.id, x]));
+  const nextMap = Object.fromEntries((nextArr || []).map(x => [x.id, x]));
+  // Upsert changed / new items.
+  for (const [id, item] of Object.entries(nextMap)) {
+    if (JSON.stringify(prevMap[id]) !== JSON.stringify(item)) {
+      fsSet(colName, item);
+    }
+  }
+  // Delete removed items.
+  for (const id of Object.keys(prevMap)) {
+    if (!nextMap[id]) fsDel(colName, id);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // CONSTANTS & UTILS
 // ══════════════════════════════════════════════════════════════
 const STATUS_FLOW = ["Menunggu", "Disembelih", "Dikuliti", "Selesai"];
@@ -107,12 +216,13 @@ const now = () => new Date().toISOString();
 
 // ── localStorage helpers ──────────────────────────────────────
 function loadStorage(key, fallback) {
+  // localStorage hanya untuk preferensi lokal (tema, dll).
+  // Data utama diambil dari Firestore via onSnapshot.
   try {
     const r = localStorage.getItem(key);
     if (r === null || r === undefined) return fallback;
     const parsed = JSON.parse(r);
     if (parsed === null || parsed === undefined) return fallback;
-    // Guard against corrupted/wrong-type data crashing downstream consumers.
     if (Array.isArray(fallback) && !Array.isArray(parsed)) return fallback;
     if (
       fallback !== null &&
@@ -124,9 +234,10 @@ function loadStorage(key, fallback) {
   } catch { return fallback; }
 }
 function saveStorage(key, value) {
+  // Dipertahankan agar kode theme/config tidak error.
+  // Data utama tidak disimpan di localStorage.
   try { localStorage.setItem(key, JSON.stringify(value)); }
   catch (e) {
-    // Surface quota / serialization errors during development; silent in prod.
     if (typeof console !== "undefined") console.warn("saveStorage failed for", key, e);
   }
 }
@@ -419,17 +530,16 @@ function AdminOnly({ session, children }) {
   return children;
 }
 
-// ── Permission hook (Section 5.1) ─────────────────────────────
-function usePermission(session) {
-  const isAdmin = session?.role === "admin";
+// ── Permission hook — semua aksi diizinkan (no login) ─────────
+function usePermission() {
   return {
-    canDelete: isAdmin,
-    canResetStatus: isAdmin,
-    canManageAccounts: isAdmin,
-    canConfigWA: isAdmin,
-    canExport: isAdmin,
-    canEditLockedData: isAdmin,
-    canVerifyRAB: isAdmin,
+    canDelete: true,
+    canResetStatus: true,
+    canManageAccounts: true,
+    canConfigWA: true,
+    canExport: true,
+    canEditLockedData: true,
+    canVerifyRAB: true,
     canAdd: true,
     canEdit: true,
     canUpdateStatus: true,
@@ -438,10 +548,8 @@ function usePermission(session) {
   };
 }
 
-// ── isHewanTerkunci (Section 5.3) ─────────────────────────────
-function isHewanTerkunci(hewan, session) {
-  return hewan.status === "Selesai" && session?.role !== "admin";
-}
+// ── isHewanTerkunci — selalu false (no login) ─────────────────
+function isHewanTerkunci() { return false; }
 
 // ══════════════════════════════════════════════════════════════
 // LOGIN PAGE
@@ -1953,7 +2061,7 @@ function AuditLogPage({ auditLog, session }) {
 // ══════════════════════════════════════════════════════════════
 // SETTINGS PAGE
 // ══════════════════════════════════════════════════════════════
-function SettingsPage({ session, addLog }) {
+function SettingsPage({ session, addLog, hewan, mudhohi, mustahiq, sesi, rab, auditLog, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
   const [theme, setTheme] = useTheme();
   const isAdmin = session?.role === "admin";
 
@@ -2015,17 +2123,17 @@ function SettingsPage({ session, addLog }) {
       <div style={{ ...css.card, borderLeft: `3px solid ${C.orange}` }}>
         <div style={{ fontWeight: 700, color: C.orange, marginBottom: 8 }}>⚠️ Catatan Penting</div>
         <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
-          Data aplikasi tersimpan di browser ini (localStorage). Jika kamu ganti browser atau perangkat, data tidak akan ikut. Catat atau backup data secara berkala.
+          Data aplikasi tersimpan di <strong style={{ color: C.green }}>Firebase Firestore</strong> dan tersinkronisasi secara real-time di semua perangkat. Backup tetap disarankan sebagai cadangan tambahan.
         </div>
       </div>
 
-      {isAdmin && <ResetDataSection session={session} addLog={addLog} />}
+      {isAdmin && <ResetDataSection session={session} addLog={addLog} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} auditLog={auditLog} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
     </div>
   );
 }
 
 // ── Reset & Export section (Admin Only) ───────────────────────
-function ResetDataSection({ session, addLog }) {
+function ResetDataSection({ session, addLog, hewan, mudhohi, mustahiq, sesi, rab, auditLog, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetInput, setResetInput] = useState("");
@@ -2033,27 +2141,26 @@ function ResetDataSection({ session, addLog }) {
   const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast({ msg: "", type: "ok" }), 3000); };
 
   const exportData = () => {
-    // SECURITY: do not export panitia password hashes (passwordHash field).
-    const keys = ["qurban_panitia", "qurban_hewan", "qurban_mudhohi", "qurban_mustahiq", "qurban_sesi", "qurban_rab", "qurban_auditlog"];
-    const data = {};
-    keys.forEach(k => {
-      try { data[k] = JSON.parse(localStorage.getItem(k) || "null"); }
-      catch { data[k] = null; }
-    });
-    if (Array.isArray(data.qurban_panitia)) {
-      data.qurban_panitia = data.qurban_panitia.map(({ passwordHash, ...rest }) => rest);
-    }
+    // SECURITY: passwordHash tidak diikutsertakan dalam export.
     try {
+      const data = {
+        qurban_hewan: hewan || [],
+        qurban_mudhohi: mudhohi || [],
+        qurban_mustahiq: mustahiq || [],
+        qurban_sesi: sesi || [],
+        qurban_rab: rab || [],
+        qurban_auditlog: auditLog || [],
+        exportedAt: new Date().toISOString(),
+        source: "Firebase Firestore",
+      };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `qurban-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.rel = "noopener";
-      // Anchor must be in DOM for Firefox / iOS Safari to honour the download.
       document.body.appendChild(a);
       a.click();
-      // Defer cleanup so the download has time to start.
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
@@ -2065,15 +2172,32 @@ function ResetDataSection({ session, addLog }) {
     }
   };
 
-  const doReset = () => {
+  const doReset = async () => {
     if (resetInput !== "RESET") { showToast("Ketik RESET untuk konfirmasi.", "err"); return; }
-    const keys = ["qurban_hewan", "qurban_mudhohi", "qurban_mustahiq", "qurban_sesi", "qurban_rab", "qurban_auditlog", "qurban_token"];
-    keys.forEach(k => localStorage.removeItem(k));
-    addLog(session, "DATA_RESET", "SETTINGS", "RESET", "Reset Data App", {});
-    setShowResetConfirm(false);
-    setResetInput("");
-    showToast("Data berhasil direset. Halaman akan dimuat ulang...");
-    setTimeout(() => window.location.reload(), 1500);
+    try {
+      showToast("⏳ Menghapus data dari Firestore...");
+      // Hapus semua koleksi data (kecuali panitia & config)
+      await Promise.all([
+        fsReplaceAll(COL.hewan, []),
+        fsReplaceAll(COL.mudhohi, []),
+        fsReplaceAll(COL.mustahiq, []),
+        fsReplaceAll(COL.sesi, []),
+        fsReplaceAll(COL.rab, []),
+        fsReplaceAll(COL.auditlog, []),
+      ]);
+      // Update local state langsung (onSnapshot akan konfirmasi)
+      setHewan([]);
+      setMudhohi([]);
+      setMustahiq([]);
+      setSesi([]);
+      setRab([]);
+      addLog(session, "DATA_RESET", "SETTINGS", "RESET", "Reset Data App", {});
+      setShowResetConfirm(false);
+      setResetInput("");
+      showToast("✅ Data berhasil direset dari Firestore.");
+    } catch (e) {
+      showToast("Gagal reset data: " + e.message, "err");
+    }
   };
 
   return (
@@ -2540,7 +2664,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
 // ══════════════════════════════════════════════════════════════
 // ROOT APP
 // ══════════════════════════════════════════════════════════════
-const NAV_BASE = [
+const NAV = [
   { id: "dashboard", emoji: "📊", label: "Dashboard" },
   { id: "hewan", emoji: "🐾", label: "Hewan" },
   { id: "mudhohi", emoji: "💳", label: "Shohibul Qurban" },
@@ -2550,47 +2674,124 @@ const NAV_BASE = [
   { id: "import", emoji: "📥", label: "Import" },
   { id: "settings", emoji: "⚙️", label: "Pengaturan" },
 ];
-const NAV_ADMIN = [
-  ...NAV_BASE,
-  { id: "panitia", emoji: "👤", label: "Panitia" },
-];
+
+const DUMMY_SESSION = { panitiaId: "SYSTEM", panitiaName: "Panitia", role: "admin" };
+
+// ── Firebase loading screen ───────────────────────────────────
+function FirebaseLoading() {
+  const [theme] = useTheme();
+  return (
+    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      <div style={{ fontSize: 48 }}>🕌</div>
+      <div style={{ fontWeight: 900, fontSize: 18, color: THEMES[theme].white }}>Qurban App</div>
+      <div style={{ fontSize: 13, color: THEMES[theme].muted }}>⏳ Memuat data dari Firebase...</div>
+    </div>
+  );
+}
 
 export default function App() {
-  const [session, setSession] = useState(() => loadSession());
   const [page, setPage] = useState("dashboard");
   const navRef = useRef(null);
-  const [theme] = useTheme(); // subscribe to theme changes to force re-render
+  const [theme] = useTheme();
 
-  // Lazy init storage — EC-13: seed hanya jika kosong (first run)
-  const [panitiaList, setPanitiaList] = useState(() => {
-    const loaded = loadStorage("qurban_panitia", []);
-    return Array.isArray(loaded) && loaded.length > 0 ? loaded : SEED_PANITIA;
-  });
-  const [hewan, setHewan] = useState(() => loadStorage("qurban_hewan", SEED_HEWAN));
-  const [mudhohi, setMudhohi] = useState(() => loadStorage("qurban_mudhohi", SEED_MUDHOHI));
-  const [mustahiq, setMustahiq] = useState(() => loadStorage("qurban_mustahiq", SEED_MUSTAHIQ));
-  const [sesi, setSesi] = useState(() => loadStorage("qurban_sesi", SEED_SESI));
-  const [rab, setRab] = useState(() => loadStorage("qurban_rab", SEED_RAB));
-  const [fonnteToken, setFonnteToken] = useState(() => loadStorage("qurban_token", ""));
-  const [auditLog, setAuditLog] = useState(() => loadStorage("qurban_auditlog", []));
+  // ── Firestore state ───────────────────────────────────────────
+  // Semua data utama diambil realtime dari Firestore.
+  // `loading` true sampai semua 6 koleksi sudah menerima snapshot pertama.
+  const [loading, setLoading] = useState(true);
+  const loadedRef = useRef({ hewan: false, mudhohi: false, mustahiq: false, sesi: false, rab: false, auditlog: false });
 
-  useEffect(() => { saveStorage("qurban_panitia", panitiaList); }, [panitiaList]);
-  useEffect(() => { saveStorage("qurban_hewan", hewan); }, [hewan]);
-  useEffect(() => { saveStorage("qurban_mudhohi", mudhohi); }, [mudhohi]);
-  useEffect(() => { saveStorage("qurban_mustahiq", mustahiq); }, [mustahiq]);
-  useEffect(() => { saveStorage("qurban_sesi", sesi); }, [sesi]);
-  useEffect(() => { saveStorage("qurban_rab", rab); }, [rab]);
-  useEffect(() => { saveStorage("qurban_token", fonnteToken); }, [fonnteToken]);
-  useEffect(() => { saveStorage("qurban_auditlog", auditLog); }, [auditLog]);
+  const markLoaded = (key) => {
+    loadedRef.current[key] = true;
+    if (Object.values(loadedRef.current).every(Boolean)) setLoading(false);
+  };
 
-  // BR-LOG-01: audit log helper
+  const [hewan, setHewanState] = useState(SEED_HEWAN);
+  const [mudhohi, setMudhohiState] = useState(SEED_MUDHOHI);
+  const [mustahiq, setMustahiqState] = useState(SEED_MUSTAHIQ);
+  const [sesi, setSesiState] = useState(SEED_SESI);
+  const [rab, setRabState] = useState(SEED_RAB);
+  const [auditLog, setAuditLogState] = useState([]);
+
+  // Keep prev refs for diff-sync
+  const prevHewan    = useRef(hewan);
+  const prevMudhohi  = useRef(mudhohi);
+  const prevMustahiq = useRef(mustahiq);
+  const prevSesi     = useRef(sesi);
+  const prevRab      = useRef(rab);
+
+  // ── Subscribe to Firestore collections on mount ───────────────
+  useEffect(() => {
+    const unsubs = [
+      fsSubscribe(COL.hewan, data => { setHewanState(data); prevHewan.current = data; markLoaded("hewan"); }),
+      fsSubscribe(COL.mudhohi, data => { setMudhohiState(data); prevMudhohi.current = data; markLoaded("mudhohi"); }),
+      fsSubscribe(COL.mustahiq, data => { setMustahiqState(data); prevMustahiq.current = data; markLoaded("mustahiq"); }),
+      fsSubscribe(COL.sesi, data => { setSesiState(data); prevSesi.current = data; markLoaded("sesi"); }),
+      fsSubscribe(COL.rab, data => { setRabState(data); prevRab.current = data; markLoaded("rab"); }),
+      fsSubscribe(COL.auditlog, data => {
+        // sort by waktu desc, keep latest 500
+        const sorted = [...data].sort((a, b) => (b.waktu || "").localeCompare(a.waktu || "")).slice(0, 500);
+        setAuditLogState(sorted);
+        markLoaded("auditlog");
+      }),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Firestore-aware setters (sync diff to Firestore) ──────────
+  // Components call these exactly like the old setState — the wrapper
+  // additionally syncs the changes to Firestore.
+
+  const setHewan = useCallback((updater) => {
+    setHewanState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      fsSync(COL.hewan, prev, next);
+      prevHewan.current = next;
+      return next;
+    });
+  }, []);
+
+  const setMudhohi = useCallback((updater) => {
+    setMudhohiState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      fsSync(COL.mudhohi, prev, next);
+      prevMudhohi.current = next;
+      return next;
+    });
+  }, []);
+
+  const setMustahiq = useCallback((updater) => {
+    setMustahiqState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      fsSync(COL.mustahiq, prev, next);
+      prevMustahiq.current = next;
+      return next;
+    });
+  }, []);
+
+  const setSesi = useCallback((updater) => {
+    setSesiState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      fsSync(COL.sesi, prev, next);
+      prevSesi.current = next;
+      return next;
+    });
+  }, []);
+
+  const setRab = useCallback((updater) => {
+    setRabState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      fsSync(COL.rab, prev, next);
+      prevRab.current = next;
+      return next;
+    });
+  }, []);
+
   const addLog = useCallback((sess, aksi, modul, targetId, targetDesc, detail = {}) => {
-    const entry = createLogEntry(sess || session, aksi, modul, targetId, targetDesc, detail);
-    // Limit 500 entry (Catatan implementasi §9)
-    setAuditLog(prev => [entry, ...prev].slice(0, 500));
-  }, [session]);
+    const entry = createLogEntry(DUMMY_SESSION, aksi, modul, targetId, targetDesc, detail);
+    // Write directly to Firestore; the onSnapshot listener will update the local state.
+    fsSet(COL.auditlog, entry);
+  }, []);
 
-  // Scroll nav aktif ke tengah
   useEffect(() => {
     if (navRef.current) {
       const active = navRef.current.querySelector("[data-active='true']");
@@ -2598,53 +2799,16 @@ export default function App() {
     }
   }, [page]);
 
-  // EC-14, EC-15: re-check session validity + user status on every write
-  const checkSession = () => {
-    if (!session) return false;
-    const user = panitiaList.find(u => u.id === session.panitiaId);
-    if (!user || user.status === "nonaktif") { handleLogout(); return false; }
-    return true;
-  };
-
-  const handleLogin = (sess) => { setSession(sess); setPage("dashboard"); };
-
-  const handleLogout = () => {
-    if (session) addLog(session, "AUTH_LOGOUT", "AUTH", session.panitiaId, session.panitiaName, {});
-    clearSession();
-    setSession(null);
-    setPage("dashboard");
-  };
-
-  // BR-AUTH-08: ganti password wajib saat pertama login
-  if (!session) {
-    return <LoginPage onLogin={handleLogin} panitiaList={panitiaList} setPanitiaList={setPanitiaList} addLog={addLog} />;
-  }
-  if (session.mustChangePassword) {
-    return <GantiPasswordModal session={session} setPanitiaList={setPanitiaList} onDone={() => { const s = { ...session, mustChangePassword: false }; saveSession(s, !!session.remember); setSession(s); }} addLog={addLog} />;
-  }
-
-  const isAdmin = session.role === "admin";
-  const NAV = isAdmin ? NAV_ADMIN : NAV_BASE;
+  if (loading) return <FirebaseLoading />;
 
   return (
     <div style={{ background: THEMES[theme].bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: THEMES[theme].text }}>
       {/* Top bar */}
-      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>🕌</span>
-          <div>
-            <div style={{ fontWeight: 900, fontSize: 14, color: C.white, lineHeight: 1.1 }}>Qurban App</div>
-            <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace" }}>{new Date().getFullYear()} M</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12, color: C.text }}>{session.panitiaName}</div>
-            <div style={{ fontSize: 10, color: isAdmin ? C.gold : C.blue }}>
-              {isAdmin ? "👑 Admin" : "👤 Panitia"}
-            </div>
-          </div>
-          <button onClick={handleLogout} style={{ ...css.btn(C.red + "22", C.red), fontSize: 12, padding: "6px 12px", border: `1px solid ${C.red}44`, minHeight: 36 }}>Keluar</button>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
+        <span style={{ fontSize: 20, marginRight: 8 }}>🕌</span>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 14, color: C.white, lineHeight: 1.1 }}>Qurban App</div>
+          <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace" }}>{new Date().getFullYear()} M</div>
         </div>
       </div>
 
@@ -2664,21 +2828,13 @@ export default function App() {
       {/* Pages */}
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "16px 12px 96px" }}>
         {page === "dashboard" && <Dashboard hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} setPage={setPage} />}
-        {page === "hewan" && <HewanPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} session={session} addLog={addLog} />}
-        {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken={fonnteToken} session={session} addLog={addLog} />}
-        {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={session} addLog={addLog} />}
-        {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={session} addLog={addLog} />}
-        {page === "import" && (
-  <ImportPage
-    hewan={hewan} setHewan={setHewan}
-    mudhohi={mudhohi} setMudhohi={setMudhohi}
-    mustahiq={mustahiq} setMustahiq={setMustahiq}
-    session={session} addLog={addLog}
-  />
-)}
-        {page === "log" && <AuditLogPage auditLog={auditLog} session={session} />}
-        {page === "settings" && <SettingsPage session={session} addLog={addLog} />}
-        {page === "panitia" && isAdmin && <KelolaPanitiaPage panitiaList={panitiaList} setPanitiaList={setPanitiaList} session={session} addLog={addLog} />}
+        {page === "hewan" && <HewanPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} session={DUMMY_SESSION} addLog={addLog} />}
+        {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken="" session={DUMMY_SESSION} addLog={addLog} />}
+        {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={DUMMY_SESSION} addLog={addLog} />}
+        {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={DUMMY_SESSION} addLog={addLog} />}
+        {page === "import" && <ImportPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} mustahiq={mustahiq} setMustahiq={setMustahiq} session={DUMMY_SESSION} addLog={addLog} />}
+        {page === "log" && <AuditLogPage auditLog={auditLog} session={DUMMY_SESSION} />}
+        {page === "settings" && <SettingsPage session={DUMMY_SESSION} addLog={addLog} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} auditLog={auditLog} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
       </div>
     </div>
   );
