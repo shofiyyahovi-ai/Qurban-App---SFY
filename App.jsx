@@ -728,84 +728,173 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
   const lunas = mudhohi.filter(m => m.bayar === "Lunas").length;
   const belumLunas = mudhohi.filter(m => m.bayar === "Belum Lunas").length;
   const sudahAmbil = mustahiq.filter(m => m.sudahAmbil).length;
+  const belumAmbil = mustahiq.length - sudahAmbil;
   const pct = totalHewan ? Math.round((selesai / totalHewan) * 100) : 0;
+  const pctAmbil = mustahiq.length ? Math.round((sudahAmbil / mustahiq.length) * 100) : 0;
 
-  const statCards = [
-    { icon: "🐄", label: "Sapi", value: hewan.filter(h => h.jenis === "Sapi").length, color: C.gold, page: "hewan" },
-    { icon: "🐐", label: "Kambing", value: hewan.filter(h => h.jenis === "Kambing").length, color: C.green, page: "hewan" },
-    { icon: "🐑", label: "Domba", value: hewan.filter(h => h.jenis === "Domba").length, color: C.purple, page: "hewan" },
-    { icon: "👥", label: "Shohibul Qurban", value: mudhohi.length, color: C.blue, page: "mudhohi" },
-    { icon: "✅", label: "Lunas", value: lunas, color: C.greenLight, page: "mudhohi" },
-    { icon: "⏳", label: "Belum Lunas", value: belumLunas, color: C.red, page: "mudhohi" },
-    { icon: "🤲", label: "Penerima Daging", value: mustahiq.length, color: C.orange, page: "mustahiq" },
-    { icon: "🧺", label: "Sudah Ambil", value: sudahAmbil, color: C.greenLight, page: "mustahiq" },
+  const GOLD = "#C9A84C";
+  const GOLD_DIM = "#C9A84C22";
+  const GOLD_BORDER = "#C9A84C44";
+
+  const statusData = STATUS_FLOW.map(st => ({
+    label: st,
+    value: hewan.filter(h => h.status === st).length,
+    color: STATUS_COLOR[st],
+  }));
+
+  const jenisData = [
+    { label: "Sapi", emoji: "🐄", value: hewan.filter(h => h.jenis === "Sapi").length, color: C.gold },
+    { label: "Kambing", emoji: "🐐", value: hewan.filter(h => h.jenis === "Kambing").length, color: C.green },
+    { label: "Domba", emoji: "🐑", value: hewan.filter(h => h.jenis === "Domba").length, color: C.purple },
   ];
 
   return (
-    <div>
-      <SectionTitle emoji="📊" title="Dashboard" sub="Ringkasan status qurban hari ini" />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* ── Alert belum lunas ── */}
       {belumLunas > 0 && (
-        <div onClick={() => setPage("mudhohi")} style={{ ...css.card, borderLeft: `3px solid ${C.red}`, background: "#3B000022", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 13, color: C.red }}>⚠️ {belumLunas} shohibul qurban belum lunas pembayaran</div>
+        <div onClick={() => setPage("mudhohi")} style={{
+          background: "#3B000022", border: `1px solid ${C.red}44`,
+          borderLeft: `4px solid ${C.red}`, borderRadius: 10,
+          padding: "12px 16px", cursor: "pointer",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <span style={{ fontSize: 13, color: C.red }}>⚠️ {belumLunas} shohibul qurban belum lunas</span>
           <span style={{ fontSize: 12, color: C.muted }}>Lihat →</span>
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10, marginBottom: 20 }}>
-        {statCards.map(sc => (
-          <div key={sc.label} onClick={() => setPage(sc.page)} style={{ ...css.card, borderLeft: `3px solid ${sc.color}`, marginBottom: 0, textAlign: "center", padding: "16px 10px", cursor: "pointer" }}>
-            <div style={{ fontSize: 24 }}>{sc.icon}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1.2 }}>{sc.value}</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{sc.label}</div>
+
+      {/* ══ SEKSI 1: HEWAN QURBAN ══ */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
+        {/* Header seksi */}
+        <div style={{
+          background: `linear-gradient(135deg, #1B4332 0%, #0A1F14 100%)`,
+          borderBottom: `1px solid ${GOLD_BORDER}`,
+          padding: "14px 18px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: GOLD, letterSpacing: 0.3 }}>🐾 Hewan Qurban</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Total terdaftar</div>
           </div>
-        ))}
-      </div>
-      <div style={css.card}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontWeight: 700, color: C.white }}>🔪 Progress Penyembelihan</span>
-          <span style={{ fontWeight: 900, color: C.green, fontSize: 18 }}>{pct}%</span>
+          <div style={{
+            background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`,
+            borderRadius: 10, padding: "6px 16px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: GOLD, lineHeight: 1 }}>{totalHewan}</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>ekor</div>
+          </div>
         </div>
-        <ProgressBar value={selesai} max={totalHewan} />
-        <div style={{ marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {STATUS_FLOW.map(st => (
-            <div key={st} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: STATUS_COLOR[st] }} />
-              <span style={{ fontSize: 12, color: C.muted }}>{st}: <strong style={{ color: C.text }}>{hewan.filter(h => h.status === st).length}</strong></span>
+
+        {/* Jumlah per jenis */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: `1px solid ${C.border}` }}>
+          {jenisData.map((j, idx) => (
+            <div key={j.label} onClick={() => setPage("hewan")} style={{
+              padding: "14px 10px", textAlign: "center", cursor: "pointer",
+              borderRight: idx < 2 ? `1px solid ${C.border}` : "none",
+              transition: "background 0.15s",
+            }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{j.emoji}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: j.color, lineHeight: 1 }}>{j.value}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.label}</div>
             </div>
           ))}
         </div>
-      </div>
-      <div style={css.card}>
-        <div style={{ fontWeight: 700, color: C.white, marginBottom: 12 }}>🎟️ Distribusi Daging</div>
-        <div style={{ display: "flex", gap: 20, marginBottom: 12 }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 24, fontWeight: 900, color: C.green }}>{sudahAmbil}</div>
-            <div style={{ fontSize: 12, color: C.muted }}>Sudah Ambil</div>
+
+        {/* Status per tahap */}
+        <div style={{ padding: "14px 18px" }}>
+          <div style={{ fontSize: 11, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>Status Penyembelihan</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+            {statusData.map(s => (
+              <div key={s.label} style={{
+                background: s.color + "11", border: `1px solid ${s.color}33`,
+                borderRadius: 8, padding: "10px 14px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span style={{ fontSize: 13, color: C.muted }}>{s.label}</span>
+                <span style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 24, fontWeight: 900, color: C.red }}>{mustahiq.length - sudahAmbil}</div>
-            <div style={{ fontSize: 12, color: C.muted }}>Belum Ambil</div>
+          {/* Progress bar */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: C.muted }}>Selesai disembelih</span>
+            <span style={{ fontSize: 14, fontWeight: 900, color: C.green }}>{pct}%</span>
+          </div>
+          <div style={{ height: 10, background: C.border, borderRadius: 99, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, #2E7D32, #4CAF50)`, borderRadius: 99, transition: "width 0.4s" }} />
           </div>
         </div>
-        <ProgressBar value={sudahAmbil} max={mustahiq.length} />
       </div>
-      <div style={css.card}>
-        <div style={{ fontWeight: 700, color: C.white, marginBottom: 10 }}>🐾 Status Semua Hewan</div>
-        {JENIS_HEWAN.map(jenis => {
-          const list = hewan.filter(h => h.jenis === jenis);
-          if (!list.length) return null;
-          return (
-            <div key={jenis} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: JENIS_COLOR[jenis], fontFamily: "monospace", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>{JENIS_EMOJI[jenis]} {jenis}</div>
-              {list.map(h => (
-                <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: 14, color: C.text }}>{h.nama}</span>
-                  <Pill text={h.status} color={STATUS_COLOR[h.status]} />
-                </div>
-              ))}
-            </div>
-          );
-        })}
+
+      {/* ══ SEKSI 2: PENERIMA DAGING ══ */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}
+        onClick={() => setPage("mustahiq")} >
+        {/* Header */}
+        <div style={{
+          background: `linear-gradient(135deg, #1A2B1A 0%, #0C1A0C 100%)`,
+          borderBottom: `1px solid ${C.border}`,
+          padding: "14px 18px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          cursor: "pointer",
+        }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: C.greenLight, letterSpacing: 0.3 }}>🤲 Penerima Daging</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Total terdaftar</div>
+          </div>
+          <div style={{
+            background: C.green + "22", border: `1px solid ${C.green}44`,
+            borderRadius: 10, padding: "6px 16px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: C.greenLight, lineHeight: 1 }}>{mustahiq.length}</div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>orang</div>
+          </div>
+        </div>
+
+        {/* Sudah & Belum ambil */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ padding: "16px", textAlign: "center", borderRight: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: C.green, lineHeight: 1 }}>{sudahAmbil}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>✅ Sudah Ambil</div>
+          </div>
+          <div style={{ padding: "16px", textAlign: "center" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: C.red, lineHeight: 1 }}>{belumAmbil}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>⏳ Belum Ambil</div>
+          </div>
+        </div>
+
+        {/* Progress */}
+        <div style={{ padding: "14px 18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: C.muted }}>Distribusi daging</span>
+            <span style={{ fontSize: 14, fontWeight: 900, color: C.green }}>{pctAmbil}%</span>
+          </div>
+          <div style={{ height: 10, background: C.border, borderRadius: 99, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pctAmbil}%`, background: `linear-gradient(90deg, #1B4332, #4CAF50)`, borderRadius: 99, transition: "width 0.4s" }} />
+          </div>
+        </div>
       </div>
+
+      {/* ══ SEKSI 3: PEMBAYARAN (lebih kecil) ══ */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 18px" }}
+        onClick={() => setPage("mudhohi")} >
+        <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>💳 Pembayaran Shohibul Qurban</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ background: C.green + "11", border: `1px solid ${C.green}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.green }}>{lunas}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Lunas</div>
+          </div>
+          <div style={{ background: C.red + "11", border: `1px solid ${C.red}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.red }}>{belumLunas}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Belum Lunas</div>
+          </div>
+          <div style={{ background: C.orange + "11", border: `1px solid ${C.orange}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.orange }}>{mudhohi.filter(m => m.bayar === "Cicilan").length}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Cicilan</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
