@@ -39,8 +39,7 @@ const COL = {
   hewan:    "qurban_hewan",
   mudhohi:  "qurban_mudhohi",
   mustahiq: "qurban_mustahiq",
-  sesi:     "qurban_sesi",
-  rab:      "qurban_rab",
+  sesi:     "qurban_sesi":      "qurban_rab",
   panitia:  "qurban_panitia",
   config:   "qurban_config",
 };
@@ -331,7 +330,6 @@ const SEED_HEWAN = [];
 const SEED_MUDHOHI = [];
 const SEED_MUSTAHIQ = [];
 const SEED_SESI = [];
-const SEED_RAB = [];
 
 // ══════════════════════════════════════════════════════════════
 // COLOR & STYLES
@@ -1761,280 +1759,6 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session}) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// RAB PAGE
-// ══════════════════════════════════════════════════════════════
-function RABPage({ rab, setRab, mudhohi, session}) {
-  const perm = usePermission(session);
-  const [modal, setModal] = useState(false);
-  const [confirmId, setConfirmId] = useState(null);
-  const [form, setForm] = useState({ nama: "", kategori: "Hewan", jumlah: "", ket: "" });
-  const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState({ msg: "", type: "ok" });
-  const KATEGORI = ["Hewan", "Operasional", "Konsumsi", "Lainnya"];
-  const KCOLOR = { Hewan: C.gold, Operasional: C.blue, Konsumsi: C.green, Lainnya: C.muted };
-
-  const totalPemasukan = mudhohi.reduce((a, m) => a + Number(m.nominal || 0), 0);
-  const totalPengeluaran = rab.reduce((a, r) => a + Number(r.jumlah || 0), 0);
-  const saldo = totalPemasukan - totalPengeluaran;
-
-  const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast({ msg: "", type: "ok" }), 3000); };
-
-  const validate = () => {
-    const e = {};
-    if (!form.nama.trim()) e.nama = "Nama item wajib diisi";
-    if (!form.jumlah || Number(form.jumlah) <= 0) e.jumlah = "Jumlah harus lebih dari 0";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const save = () => {
-    if (!validate()) return;
-    if (modal === "add") {
-      const newR = { ...form, id: "R" + uuid(), createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), verified: false, verifiedBy: null, verifiedAt: null };
-      setRab(prev => [...prev, newR]);
-    } else {
-      const existing = rab.find(r => r.id === form.id);
-      // BR-RAB-04: item verified tidak bisa diedit panitia
-      if (existing?.verified && session.role !== "admin") { showToast("Item yang sudah diverifikasi tidak bisa diedit oleh panitia.", "err"); return; }
-      const updated = { ...form, createdBy: existing.createdBy, createdAt: existing.createdAt, updatedBy: session.panitiaId, updatedAt: now(), verified: existing.verified, verifiedBy: existing.verifiedBy, verifiedAt: existing.verifiedAt };
-      setRab(prev => prev.map(r => r.id === form.id ? updated : r));
-    }
-    setModal(null);
-    showToast("Item RAB disimpan.");
-  };
-
-  const del = () => {
-    const r = rab.find(x => x.id === confirmId);
-    setRab(prev => prev.filter(r => r.id !== confirmId));
-    setConfirmId(null);
-    showToast("Item dihapus.");
-  };
-
-  // BR-RAB-04: Verifikasi admin
-  const doVerify = (r) => {
-    const updated = { ...r, verified: !r.verified, verifiedBy: !r.verified ? session.panitiaId : null, verifiedAt: !r.verified ? now() : null };
-    setRab(prev => prev.map(x => x.id === r.id ? updated : x));
-    showToast(updated.verified ? "Item diverifikasi." : "Verifikasi dibatalkan.");
-  };
-
-  return (
-    <div>
-      <Toast msg={toast.msg} type={toast.type} />
-      <SectionTitle emoji="💰" title="Laporan RAB" sub="Rencana Anggaran Biaya qurban" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-        {[
-          { label: "Pemasukan", value: totalPemasukan, color: C.green, icon: "📥" },
-          { label: "Pengeluaran", value: totalPengeluaran, color: C.red, icon: "📤" },
-          { label: saldo >= 0 ? "Surplus" : "Defisit", value: Math.abs(saldo), color: saldo >= 0 ? C.green : C.red, icon: saldo >= 0 ? "✅" : "⚠️" },
-        ].map(item => (
-          <div key={item.label} style={{ ...css.card, borderLeft: `3px solid ${item.color}`, marginBottom: 0, padding: "14px 16px" }}>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{item.icon} {item.label}</div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: item.color }}>Rp {item.value.toLocaleString("id")}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ ...css.card, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 6 }}>Pemasukan vs Pengeluaran</div>
-        <ProgressBar value={totalPengeluaran} max={Math.max(totalPemasukan, totalPengeluaran, 1)} color={saldo >= 0 ? C.green : C.red} />
-        <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{totalPemasukan > 0 ? Math.round(totalPengeluaran / totalPemasukan * 100) : 0}% dari pemasukan terpakai</div>
-      </div>
-      <Btn color={C.green} onClick={() => { setForm({ nama: "", kategori: "Hewan", jumlah: "", ket: "" }); setErrors({}); setModal("add"); }} style={{ marginBottom: 14 }}>+ Tambah Item</Btn>
-      {KATEGORI.map(kat => {
-        const items = rab.filter(r => r.kategori === kat);
-        if (!items.length) return null;
-        const subtotal = items.reduce((a, r) => a + Number(r.jumlah || 0), 0);
-        return (
-          <div key={kat} style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 12, color: KCOLOR[kat], fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase" }}>● {kat}</div>
-              <span style={{ fontSize: 12, color: C.muted }}>Rp {subtotal.toLocaleString("id")}</span>
-            </div>
-            {items.map(r => (
-              <div key={r.id} style={{ ...css.card, padding: "12px 16px", borderLeft: r.verified ? `3px solid ${C.green}` : undefined }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: C.white }}>{r.nama}</div>
-                      {r.verified && <span style={{ ...css.badge(C.green), fontSize: 10 }}>✓ Verified</span>}
-                    </div>
-                    {r.ket && <div style={{ fontSize: 12, color: C.muted }}>{r.ket}</div>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 700, color: C.red }}>Rp {Number(r.jumlah).toLocaleString("id")}</span>
-                    {/* BR-RAB-04: edit disabled jika verified dan bukan admin */}
-                    {(!r.verified || session.role === "admin") && (
-                      <Btn color={C.blue} onClick={() => { setForm({ ...r }); setErrors({}); setModal("edit"); }} style={{ fontSize: 13, padding: "8px 14px" }}>Edit</Btn>
-                    )}
-                    {/* Verifikasi hanya admin */}
-                    <AdminOnly session={session}>
-                      <Btn color={r.verified ? C.orange : C.green} onClick={() => doVerify(r)} style={{ fontSize: 13, padding: "8px 14px" }}>{r.verified ? "Batal Verif" : "Verifikasi"}</Btn>
-                      <Btn color={C.red} onClick={() => setConfirmId(r.id)} style={{ fontSize: 13, padding: "8px 14px" }}>Hapus</Btn>
-                    </AdminOnly>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-      {modal && (
-        <Modal onClose={() => setModal(null)} title={`${modal === "add" ? "Tambah" : "Edit"} Item RAB`}>
-          <Input label="Nama Item" value={form.nama} onChange={v => setForm(p => ({ ...p, nama: v }))} error={errors.nama} />
-          <Select label="Kategori" value={form.kategori} onChange={v => setForm(p => ({ ...p, kategori: v }))} options={KATEGORI} />
-          <Input label="Jumlah (Rp)" type="number" value={form.jumlah} onChange={v => setForm(p => ({ ...p, jumlah: v }))} error={errors.jumlah} />
-          <Input label="Keterangan (opsional)" value={form.ket} onChange={v => setForm(p => ({ ...p, ket: v }))} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn color={C.green} onClick={save} style={{ flex: 1 }}>Simpan</Btn>
-            <Btn color={C.muted} onClick={() => setModal(null)} style={{ flex: 1 }}>Batal</Btn>
-          </div>
-        </Modal>
-      )}
-      {confirmId && <ConfirmModal pesan="Yakin hapus item RAB ini?" onConfirm={del} onCancel={() => setConfirmId(null)} />}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
-// KELOLA AKUN (Admin Only)
-// ══════════════════════════════════════════════════════════════
-function KelolaPanitiaPage({ panitiaList, setPanitiaList, session }) {
-  const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ nama: "", username: "", password: "", role: "panitia" });
-  const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState({ msg: "", type: "ok" });
-
-  const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast({ msg: "", type: "ok" }), 3000); };
-
-  const validate = () => {
-    const e = {};
-    if (!form.nama.trim()) e.nama = "Nama wajib diisi";
-    if (!form.username.trim()) e.username = "Username wajib diisi";
-    const dupUser = panitiaList.find(u => u.username === form.username.toLowerCase() && u.id !== form.id);
-    if (dupUser) e.username = "Username sudah dipakai";
-    if (modal === "add" && !form.password.trim()) e.password = "Password wajib diisi untuk akun baru";
-    if (form.password && form.password.length < 6) e.password = "Minimal 6 karakter";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    if (busy) return;
-    if (!validate()) return;
-    // SECURITY: prevent admin from demoting themselves (self-lockout).
-    if (modal === "edit" && form.id === session.panitiaId && form.role !== "admin" && session.role === "admin") {
-      showToast("Anda tidak bisa menurunkan role akun sendiri. Minta admin lain.", "err");
-      return;
-    }
-    setBusy(true);
-    try {
-      if (modal === "add") {
-        const newU = {
-          id: "USR_" + uuid(),
-          nama: form.nama,
-          username: form.username.toLowerCase(),
-          passwordHash: await hashPassword(form.password),
-          role: form.role,
-          status: "aktif",
-          mustChangePassword: true,
-          loginAttempts: 0,
-          lockedUntil: null,
-          createdAt: now(),
-          createdBy: session.panitiaId,
-          updatedAt: now(),
-          updatedBy: session.panitiaId,
-        };
-        setPanitiaList(prev => [...prev, newU]);
-        showToast(`Akun "${form.nama}" berhasil dibuat.`);
-      } else {
-        const existing = panitiaList.find(u => u.id === form.id);
-        if (!existing) { showToast("Akun tidak ditemukan.", "err"); return; }
-        // BR-AUTH-05: minimal 1 admin aktif jika role berubah dari admin.
-        if (existing.role === "admin" && form.role !== "admin") {
-          const activeAdmins = panitiaList.filter(u => u.role === "admin" && u.status === "aktif" && u.id !== form.id).length;
-          if (activeAdmins === 0) { showToast("Harus ada minimal 1 admin aktif.", "err"); return; }
-        }
-        const updated = { ...existing, nama: form.nama, username: form.username.toLowerCase(), role: form.role, updatedAt: now(), updatedBy: session.panitiaId };
-        if (form.password) {
-          updated.passwordHash = await hashPassword(form.password);
-          updated.mustChangePassword = true;
-          // SECURITY: setting a new password also unlocks the account.
-          updated.loginAttempts = 0;
-          updated.lockedUntil = null;
-        }
-        setPanitiaList(prev => prev.map(u => u.id === form.id ? updated : u));
-        showToast("Akun diperbarui.");
-      }
-      setModal(null);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // BR-AUTH-04: nonaktifkan, bukan hapus
-  const toggleStatus = (u) => {
-    if (u.status === "aktif") {
-      // BR-AUTH-05: cek minimal 1 admin
-      if (u.role === "admin") {
-        const activeAdmins = panitiaList.filter(x => x.role === "admin" && x.status === "aktif" && x.id !== u.id).length;
-        if (activeAdmins === 0) { showToast("Tidak bisa menonaktifkan satu-satunya admin aktif.", "err"); return; }
-      }
-      // EC-07: tidak bisa nonaktifkan diri sendiri jika admin terakhir
-      if (u.id === session.panitiaId && u.role === "admin") {
-        const activeAdmins = panitiaList.filter(x => x.role === "admin" && x.status === "aktif" && x.id !== u.id).length;
-        if (activeAdmins === 0) { showToast("Tidak bisa menonaktifkan diri sendiri sebagai admin terakhir.", "err"); return; }
-      }
-    }
-    const newStatus = u.status === "aktif" ? "nonaktif" : "aktif";
-    setPanitiaList(prev => prev.map(x => x.id === u.id ? { ...x, status: newStatus, updatedAt: now(), updatedBy: session.panitiaId } : x));
-    showToast(`Akun "${u.nama}" ${newStatus === "nonaktif" ? "dinonaktifkan" : "diaktifkan"}.`);
-  };
-
-  return (
-    <div>
-      <Toast msg={toast.msg} type={toast.type} />
-      <SectionTitle emoji="👤" title="Kelola Akun Panitia" sub="Tambah, edit, dan kelola status akun" />
-      <Btn color={C.green} onClick={() => { setForm({ nama: "", username: "", password: "", role: "panitia" }); setErrors({}); setModal("add"); }} style={{ marginBottom: 16 }}>+ Tambah Akun</Btn>
-      {panitiaList.map(u => (
-        <div key={u.id} style={{ ...css.card, borderLeft: `3px solid ${u.status === "aktif" ? C.green : C.muted}`, opacity: u.status === "nonaktif" ? 0.7 : 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontWeight: 700, color: C.white }}>{u.nama}</div>
-                <Pill text={u.role} color={u.role === "admin" ? C.gold : C.blue} />
-                {u.mustChangePassword && <span style={{ ...css.badge(C.orange), fontSize: 10 }}>Ganti Pass</span>}
-              </div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>@{u.username}</div>
-              {u.id === session.panitiaId && <div style={{ fontSize: 11, color: C.greenLight, marginTop: 2 }}>← Akun Anda</div>}
-            </div>
-            <Pill text={u.status} color={u.status === "aktif" ? C.green : C.muted} />
-          </div>
-          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Btn color={C.blue} onClick={() => { setForm({ ...u, password: "" }); setErrors({}); setModal("edit"); }} style={{ fontSize: 13, padding: "8px 14px" }}>Edit</Btn>
-            <Btn color={u.status === "aktif" ? C.orange : C.green} onClick={() => toggleStatus(u)} style={{ fontSize: 13, padding: "8px 14px" }}>
-              {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-            </Btn>
-          </div>
-        </div>
-      ))}
-      {modal && (
-        <Modal onClose={() => setModal(null)} title={`${modal === "add" ? "Tambah" : "Edit"} Akun`}>
-          <Input label="Nama Lengkap" value={form.nama} onChange={v => setForm(p => ({ ...p, nama: v }))} error={errors.nama} />
-          <Input label="Username" value={form.username} onChange={v => setForm(p => ({ ...p, username: v.toLowerCase() }))} error={errors.username} hint="Lowercase, tanpa spasi" />
-          <Input label={modal === "add" ? "Password" : "Password Baru (kosongkan jika tidak diubah)"} type="password" value={form.password} onChange={v => setForm(p => ({ ...p, password: v }))} error={errors.password} />
-          <Select label="Role" value={form.role} onChange={v => setForm(p => ({ ...p, role: v }))} options={["admin", "panitia"]} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn color={C.green} onClick={save} disabled={busy} style={{ flex: 1 }}>{busy ? "⏳ Menyimpan..." : "Simpan"}</Btn>
-            <Btn color={C.muted} onClick={() => setModal(null)} disabled={busy} style={{ flex: 1 }}>Batal</Btn>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
 // IMPORT PAGE — Paste tepat sebelum // ROOT APP (baris 2060)
 // Requires: xlsx (npm install xlsx  ATAU  pakai CDN di index.html)
 //   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2465,7 +2189,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
 // ══════════════════════════════════════════════════════════════
 // SETTINGS PAGE
 // ══════════════════════════════════════════════════════════════
-function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
+function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, setHewan, setMudhohi, setMustahiq, setSesi }) {
   const [theme, setTheme] = useTheme();
 
   const handleThemeChange = (t) => {
@@ -2522,8 +2246,8 @@ function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, 
       {isAdmin && (
         <ResetDataSection
           session={session}
-          hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab}
-          setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab}
+          hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi}
+          setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi}
         />
       )}
     </div>
@@ -2531,7 +2255,7 @@ function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, 
 }
 
 // ── Reset & Export section (Admin Only) ───────────────────────
-function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
+function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, setHewan, setMudhohi, setMustahiq, setSesi }) {
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetInput, setResetInput] = useState("");
@@ -2545,7 +2269,6 @@ function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, rab, setHew
         qurban_mudhohi: mudhohi || [],
         qurban_mustahiq: mustahiq || [],
         qurban_sesi: sesi || [],
-        qurban_rab: rab || [],
         exportedAt: new Date().toISOString(),
         source: "Firebase Firestore",
       };
@@ -2573,13 +2296,11 @@ function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, rab, setHew
         fsReplaceAll(COL.mudhohi, []),
         fsReplaceAll(COL.mustahiq, []),
         fsReplaceAll(COL.sesi, []),
-        fsReplaceAll(COL.rab, []),
       ]);
       setHewan([]);
       setMudhohi([]);
       setMustahiq([]);
       setSesi([]);
-      setRab([]);
       setShowResetConfirm(false);
       setResetInput("");
       showToast("✅ Data berhasil direset.");
@@ -2602,7 +2323,7 @@ function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, rab, setHew
       <div style={{ ...css.card, borderLeft: `3px solid ${C.red}` }}>
         <div style={{ fontWeight: 700, color: C.red, marginBottom: 8 }}>🗑️ Reset Seluruh Data</div>
         <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-          Hapus semua data hewan, shohibul qurban, penerima daging, RAB. Aksi ini tidak bisa dibatalkan.
+          Hapus semua data hewan, shohibul qurban, dan penerima daging. Aksi ini tidak bisa dibatalkan.
         </div>
         {!showResetConfirm ? (
           <Btn color={C.red} onClick={() => setShowResetConfirm(true)}>Reset Data...</Btn>
@@ -2629,7 +2350,6 @@ const NAV = [
   { id: "hewan", emoji: "🐾", label: "Hewan" },
   { id: "mudhohi", emoji: "💳", label: "Shohibul Qurban" },
   { id: "mustahiq", emoji: "🎟️", label: "Penerima Daging" },
-  { id: "rab", emoji: "💰", label: "RAB" },
   { id: "import", emoji: "📥", label: "Import" },
   { id: "settings", emoji: "⚙️", label: "Pengaturan" },
 ];
@@ -2657,7 +2377,7 @@ export default function App() {
   // Semua data utama diambil realtime dari Firestore.
   // `loading` true sampai semua 6 koleksi sudah menerima snapshot pertama.
   const [loading, setLoading] = useState(true);
-  const loadedRef = useRef({ hewan: false, mudhohi: false, mustahiq: false, sesi: false, rab: false });
+  const loadedRef = useRef({ hewan: false, mudhohi: false, mustahiq: false, sesi: false });
 
   const markLoaded = (key) => {
     loadedRef.current[key] = true;
@@ -2668,14 +2388,12 @@ export default function App() {
   const [mudhohi, setMudhohiState] = useState(SEED_MUDHOHI);
   const [mustahiq, setMustahiqState] = useState(SEED_MUSTAHIQ);
   const [sesi, setSesiState] = useState(SEED_SESI);
-  const [rab, setRabState] = useState(SEED_RAB);
 
   // Keep prev refs for diff-sync
   const prevHewan    = useRef(hewan);
   const prevMudhohi  = useRef(mudhohi);
   const prevMustahiq = useRef(mustahiq);
   const prevSesi     = useRef(sesi);
-  const prevRab      = useRef(rab);
 
   // ── Subscribe to Firestore collections on mount ───────────────
   useEffect(() => {
@@ -2684,7 +2402,6 @@ export default function App() {
       fsSubscribe(COL.mudhohi, data => { setMudhohiState(data); prevMudhohi.current = data; markLoaded("mudhohi"); }),
       fsSubscribe(COL.mustahiq, data => { setMustahiqState(data); prevMustahiq.current = data; markLoaded("mustahiq"); }),
       fsSubscribe(COL.sesi, data => { setSesiState(data); prevSesi.current = data; markLoaded("sesi"); }),
-      fsSubscribe(COL.rab, data => { setRabState(data); prevRab.current = data; markLoaded("rab"); }),
     ];
     return () => unsubs.forEach(u => u());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2729,14 +2446,6 @@ export default function App() {
     });
   }, []);
 
-  const setRab = useCallback((updater) => {
-    setRabState(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      fsSync(COL.rab, prev, next);
-      prevRab.current = next;
-      return next;
-    });
-  }, []);
 
 
   useEffect(() => {
@@ -2778,9 +2487,8 @@ export default function App() {
         {page === "hewan" && <HewanPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} session={DUMMY_SESSION} />}
         {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken="" session={DUMMY_SESSION} />}
         {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={DUMMY_SESSION} />}
-        {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={DUMMY_SESSION} />}
         {page === "import" && <ImportPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} mustahiq={mustahiq} setMustahiq={setMustahiq} session={DUMMY_SESSION} />}
-        {page === "settings" && <SettingsPage session={DUMMY_SESSION} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
+        {page === "settings" && <SettingsPage session={DUMMY_SESSION} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} />}
       </div>
     </div>
   );
