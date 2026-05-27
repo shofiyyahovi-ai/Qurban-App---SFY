@@ -2067,6 +2067,7 @@ const NAV_BASE = [
   { id: "mustahiq", emoji: "🎟️", label: "Penerima Daging" },
   { id: "rab", emoji: "💰", label: "RAB" },
   { id: "log", emoji: "📋", label: "Log" },
+  { id: "import", emoji: "📥", label: "Import" },
   { id: "settings", emoji: "⚙️", label: "Pengaturan" },
 ];
 const NAV_ADMIN = [
@@ -2186,6 +2187,14 @@ export default function App() {
         {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken={fonnteToken} session={session} addLog={addLog} />}
         {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={session} addLog={addLog} />}
         {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={session} addLog={addLog} />}
+        {page === "import" && (
+  <ImportPage
+    hewan={hewan} setHewan={setHewan}
+    mudhohi={mudhohi} setMudhohi={setMudhohi}
+    mustahiq={mustahiq} setMustahiq={setMustahiq}
+    session={session} addLog={addLog}
+  />
+)}
         {page === "log" && <AuditLogPage auditLog={auditLog} session={session} />}
         {page === "settings" && <SettingsPage fonnteToken={fonnteToken} setFonnteToken={setFonnteToken} session={session} addLog={addLog} />}
         {page === "panitia" && isAdmin && <KelolaPanitiaPage panitiaList={panitiaList} setPanitiaList={setPanitiaList} session={session} addLog={addLog} />}
