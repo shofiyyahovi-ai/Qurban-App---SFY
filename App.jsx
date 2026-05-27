@@ -243,23 +243,64 @@ const SEED_RAB = [];
 // ══════════════════════════════════════════════════════════════
 // COLOR & STYLES
 // ══════════════════════════════════════════════════════════════
-const C = {
-  bg: "#0C0F0A", surface: "#131810", border: "#1E2B1A",
-  green: "#4CAF50", greenDark: "#1B4332", greenLight: "#81C784",
-  gold: "#D4A017", red: "#EF5350", orange: "#FF8F00",
-  blue: "#42A5F5", purple: "#AB47BC", text: "#E8F5E9",
-  muted: "#607D6B", white: "#F1F8F0",
+
+// Theme definitions
+const THEMES = {
+  dark: {
+    bg: "#0C0F0A", surface: "#131810", border: "#1E2B1A",
+    green: "#4CAF50", greenDark: "#1B4332", greenLight: "#81C784",
+    gold: "#D4A017", red: "#EF5350", orange: "#FF8F00",
+    blue: "#42A5F5", purple: "#AB47BC", text: "#E8F5E9",
+    muted: "#607D6B", white: "#F1F8F0",
+    inputBg: "#0A0D09",
+  },
+  light: {
+    bg: "#F4F7F4", surface: "#FFFFFF", border: "#D6E4D6",
+    green: "#2E7D32", greenDark: "#C8E6C9", greenLight: "#1B5E20",
+    gold: "#B8860B", red: "#C62828", orange: "#E65100",
+    blue: "#1565C0", purple: "#6A1B9A", text: "#1A2B1A",
+    muted: "#6A8C6A", white: "#1A2B1A",
+    inputBg: "#F9FBF9",
+  },
 };
+
+// Global theme state (mutable ref, updated by ThemeProvider)
+let _currentTheme = (() => {
+  try { return localStorage.getItem("qurban_theme") === "light" ? "light" : "dark"; } catch { return "dark"; }
+})();
+let _themeListeners = [];
+
+function getC() { return THEMES[_currentTheme]; }
+
+// Proxy so existing code using C.xxx still works reactively via re-render
+const C = new Proxy({}, {
+  get(_, key) { return THEMES[_currentTheme][key]; }
+});
+
+function useTheme() {
+  const [theme, setTheme] = useState(_currentTheme);
+  useEffect(() => {
+    const cb = (t) => setTheme(t);
+    _themeListeners.push(cb);
+    return () => { _themeListeners = _themeListeners.filter(x => x !== cb); };
+  }, []);
+  const toggle = (t) => {
+    _currentTheme = t;
+    try { localStorage.setItem("qurban_theme", t); } catch {}
+    _themeListeners.forEach(cb => cb(t));
+  };
+  return [theme, toggle];
+}
 const STATUS_COLOR = { Menunggu: C.muted, Disembelih: C.red, Dikuliti: C.orange, Selesai: C.green };
 const BAYAR_COLOR = { Lunas: C.green, "Belum Lunas": C.red, Cicilan: C.orange };
 const JENIS_COLOR = { Sapi: C.gold, Kambing: C.green, Domba: C.purple };
 const JENIS_EMOJI = { Sapi: "🐄", Kambing: "🐐", Domba: "🐑" };
 const css = {
-  card: { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 12 },
-  input: { background: "#0A0D09", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box", outline: "none" },
-  select: { background: "#0A0D09", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box" },
+  get card() { return { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 12 }; },
+  get input() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box", outline: "none" }; },
+  get select() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box" }; },
   btn: (bg, color = "#fff") => ({ background: bg, color, border: "none", borderRadius: 8, padding: "11px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14, minHeight: 44, touchAction: "manipulation" }),
-  label: { fontSize: 12, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" },
+  get label() { return { fontSize: 12, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }; },
   badge: (color) => ({ background: color + "22", border: `1px solid ${color}44`, color, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 }),
 };
 
@@ -530,6 +571,8 @@ function GantiPasswordModal({ session, setPanitiaList, onDone, addLog }) {
   const [pass1, setPass1] = useState("");
   const [pass2, setPass2] = useState("");
   const [err, setErr] = useState("");
+  const [showPass1, setShowPass1] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
 
   const [busy, setBusy] = useState(false);
 
@@ -565,8 +608,25 @@ function GantiPasswordModal({ session, setPanitiaList, onDone, addLog }) {
             <h2 style={{ color: C.white, margin: "8px 0 4px" }}>Ganti Password</h2>
             <p style={{ color: C.muted, fontSize: 13 }}>Wajib ganti password sebelum melanjutkan.</p>
           </div>
-          <Input label="Password Baru" type="password" value={pass1} onChange={setPass1} />
-          <Input label="Konfirmasi Password" type="password" value={pass2} onChange={setPass2} error={err} />
+          <div style={{ marginBottom: 14 }}>
+            <label style={css.label}>Password Baru</label>
+            <div style={{ position: "relative" }}>
+              <input type={showPass1 ? "text" : "password"} value={pass1} onChange={e => setPass1(e.target.value)} placeholder="••••••••" style={{ ...css.input, paddingRight: 48 }} />
+              <button onClick={() => setShowPass1(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, minHeight: 36, minWidth: 36 }}>
+                {showPass1 ? "🙈" : "👁"}
+              </button>
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={css.label}>Konfirmasi Password</label>
+            <div style={{ position: "relative" }}>
+              <input type={showPass2 ? "text" : "password"} value={pass2} onChange={e => setPass2(e.target.value)} placeholder="••••••••" style={{ ...css.input, paddingRight: 48, borderColor: err ? C.red : C.border }} />
+              <button onClick={() => setShowPass2(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, minHeight: 36, minWidth: 36 }}>
+                {showPass2 ? "🙈" : "👁"}
+              </button>
+            </div>
+            {err && <div style={{ fontSize: 11, color: C.red, marginTop: 3 }}>⚠ {err}</div>}
+          </div>
           <Btn color={C.green} onClick={save} disabled={busy} style={{ width: "100%" }}>{busy ? "⏳ Menyimpan..." : "Simpan Password"}</Btn>
         </div>
       </div>
@@ -1893,71 +1953,63 @@ function AuditLogPage({ auditLog, session }) {
 // ══════════════════════════════════════════════════════════════
 // SETTINGS PAGE
 // ══════════════════════════════════════════════════════════════
-function SettingsPage({ fonnteToken, setFonnteToken, session, addLog }) {
-  const [token, setToken] = useState(fonnteToken);
-  const [saved, setSaved] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState("");
-  const [showToken, setShowToken] = useState(false);
-  const [testNumber, setTestNumber] = useState("");
+function SettingsPage({ session, addLog }) {
+  const [theme, setTheme] = useTheme();
   const isAdmin = session?.role === "admin";
 
-  const save = () => {
-    if (!isAdmin) return;
-    setFonnteToken(token);
-    setSaved(true);
-    addLog(session, "CONFIG_UPDATED", "AUTH", "CONFIG", "Fonnte Token", {});
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const test = async () => {
-    if (!token || !testNumber.trim()) return;
-    setTesting(true); setTestResult("");
-    const res = await sendWA(token, testNumber.replace(/\D/g, ""), "Test koneksi Qurban App ✅");
-    setTestResult(res.status ? "✅ Berhasil terhubung!" : `❌ Gagal: ${res.reason}`);
-    setTesting(false);
+  const handleThemeChange = (t) => {
+    setTheme(t);
+    addLog(session, "CONFIG_UPDATED", "SETTINGS", "CONFIG", "Theme", { theme: t });
   };
 
   return (
     <div>
-      <SectionTitle emoji="⚙️" title="Pengaturan" sub="Konfigurasi integrasi Fonnte WhatsApp" />
+      <SectionTitle emoji="⚙️" title="Pengaturan" sub="Konfigurasi tampilan dan data aplikasi" />
 
-      {/* BR-WA-01: Token hanya admin */}
+      {/* Tampilan / Theme */}
       <div style={css.card}>
-        <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>📲 Fonnte API Token</div>
-        {!isAdmin && (
-          <div style={{ background: "#3B0000", border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 13px", color: C.red, fontSize: 13, marginBottom: 14 }}>
-            🔒 Konfigurasi token hanya bisa dilakukan oleh admin.
-          </div>
-        )}
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-          Dapatkan token di <span style={{ color: C.greenLight }}>fonnte.com</span> → Device → Token
+        <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>🎨 Tampilan</div>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Pilih tema tampilan aplikasi sesuai preferensi kamu.</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => handleThemeChange("dark")}
+            style={{
+              flex: 1,
+              padding: "14px 10px",
+              borderRadius: 10,
+              border: `2px solid ${theme === "dark" ? C.green : C.border}`,
+              background: theme === "dark" ? C.greenDark : C.inputBg,
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.15s",
+            }}>
+            <span style={{ fontSize: 24 }}>🌙</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "dark" ? C.greenLight : C.muted }}>Dark Mode</span>
+            {theme === "dark" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+          </button>
+          <button
+            onClick={() => handleThemeChange("light")}
+            style={{
+              flex: 1,
+              padding: "14px 10px",
+              borderRadius: 10,
+              border: `2px solid ${theme === "light" ? C.green : C.border}`,
+              background: theme === "light" ? C.greenDark : C.inputBg,
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.15s",
+            }}>
+            <span style={{ fontSize: 24 }}>☀️</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "light" ? C.greenLight : C.muted }}>Light Mode</span>
+            {theme === "light" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+          </button>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={css.label}>API Token</label>
-          <div style={{ position: "relative" }}>
-            <input type={showToken ? "text" : "password"} value={token} onChange={e => setToken(e.target.value)} placeholder="Paste token Fonnte di sini..." style={{ ...css.input, paddingRight: 40 }} disabled={!isAdmin} />
-            <button onClick={() => setShowToken(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>
-              {showToken ? "🙈" : "👁"}
-            </button>
-          </div>
-        </div>
-        <Btn color={C.green} onClick={save} disabled={!isAdmin} style={{ flex: 1 }}>{saved ? "✅ Tersimpan!" : "Simpan Token"}</Btn>
-        <div style={{ marginTop: 16 }}>
-          <label style={css.label}>Test Kirim WA</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input type="tel" value={testNumber} onChange={e => setTestNumber(e.target.value)} placeholder="08xxxxxxxxxx" style={{ ...css.input, flex: 1 }} />
-            <Btn color={C.blue} onClick={test} disabled={!token || !testNumber.trim() || testing}>{testing ? "Testing..." : "Test"}</Btn>
-          </div>
-        </div>
-        {testResult && <div style={{ marginTop: 10, fontSize: 13, color: testResult.startsWith("✅") ? C.green : C.red }}>{testResult}</div>}
-      </div>
-
-      <div style={{ ...css.card, background: "#0F1A0D", border: `1px solid ${C.greenDark}` }}>
-        <div style={{ fontWeight: 700, color: C.greenLight, marginBottom: 8 }}>📋 Cara Setup Fonnte</div>
-        {["1. Daftar di fonnte.com (gratis)", "2. Scan QR dengan WhatsApp kamu", "3. Copy token dari menu Device", "4. Paste token di atas lalu klik Simpan", "5. Test kirim untuk memastikan koneksi"].map((s, i) => (
-          <div key={i} style={{ fontSize: 13, color: C.muted, marginBottom: 6 }}>{s}</div>
-        ))}
       </div>
 
       <div style={{ ...css.card, borderLeft: `3px solid ${C.orange}` }}>
@@ -2507,6 +2559,7 @@ export default function App() {
   const [session, setSession] = useState(() => loadSession());
   const [page, setPage] = useState("dashboard");
   const navRef = useRef(null);
+  const [theme] = useTheme(); // subscribe to theme changes to force re-render
 
   // Lazy init storage — EC-13: seed hanya jika kosong (first run)
   const [panitiaList, setPanitiaList] = useState(() => {
@@ -2574,7 +2627,7 @@ export default function App() {
   const NAV = isAdmin ? NAV_ADMIN : NAV_BASE;
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: C.text }}>
+    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: THEMES[theme].text }}>
       {/* Top bar */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2624,7 +2677,7 @@ export default function App() {
   />
 )}
         {page === "log" && <AuditLogPage auditLog={auditLog} session={session} />}
-        {page === "settings" && <SettingsPage fonnteToken={fonnteToken} setFonnteToken={setFonnteToken} session={session} addLog={addLog} />}
+        {page === "settings" && <SettingsPage session={session} addLog={addLog} />}
         {page === "panitia" && isAdmin && <KelolaPanitiaPage panitiaList={panitiaList} setPanitiaList={setPanitiaList} session={session} addLog={addLog} />}
       </div>
     </div>
