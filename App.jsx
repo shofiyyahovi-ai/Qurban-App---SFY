@@ -2372,6 +2372,166 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
   );
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// SETTINGS PAGE
+// ══════════════════════════════════════════════════════════════
+function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
+  const [theme, setTheme] = useTheme();
+
+  const handleThemeChange = (t) => {
+    setTheme(t);
+  };
+
+  const isAdmin = session?.role === "admin";
+
+  return (
+    <div>
+      <SectionTitle emoji="⚙️" title="Pengaturan" sub="Konfigurasi tampilan dan data aplikasi" />
+
+      {/* Tampilan / Theme */}
+      <div style={css.card}>
+        <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>🎨 Tampilan</div>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Pilih tema tampilan aplikasi sesuai preferensi kamu.</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => handleThemeChange("dark")}
+            style={{
+              flex: 1, padding: "14px 10px", borderRadius: 10,
+              border: `2px solid ${theme === "dark" ? C.green : C.border}`,
+              background: theme === "dark" ? C.greenDark : C.inputBg,
+              cursor: "pointer", display: "flex", flexDirection: "column",
+              alignItems: "center", gap: 6, transition: "all 0.15s",
+            }}>
+            <span style={{ fontSize: 24 }}>🌙</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "dark" ? C.greenLight : C.muted }}>Dark Mode</span>
+            {theme === "dark" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+          </button>
+          <button
+            onClick={() => handleThemeChange("light")}
+            style={{
+              flex: 1, padding: "14px 10px", borderRadius: 10,
+              border: `2px solid ${theme === "light" ? C.green : C.border}`,
+              background: theme === "light" ? C.greenDark : C.inputBg,
+              cursor: "pointer", display: "flex", flexDirection: "column",
+              alignItems: "center", gap: 6, transition: "all 0.15s",
+            }}>
+            <span style={{ fontSize: 24 }}>☀️</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "light" ? C.greenLight : C.muted }}>Light Mode</span>
+            {theme === "light" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ ...css.card, borderLeft: `3px solid ${C.green}` }}>
+        <div style={{ fontWeight: 700, color: C.green, marginBottom: 8 }}>☁️ Penyimpanan Cloud</div>
+        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+          Data aplikasi tersimpan di <strong style={{ color: C.green }}>Firebase Firestore</strong> dan tersinkronisasi secara real-time di semua perangkat. Backup tetap disarankan sebagai cadangan tambahan.
+        </div>
+      </div>
+
+      {isAdmin && (
+        <ResetDataSection
+          session={session}
+          hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab}
+          setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Reset & Export section (Admin Only) ───────────────────────
+function ResetDataSection({ session, hewan, mudhohi, mustahiq, sesi, rab, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetInput, setResetInput] = useState("");
+  const [toast, setToast] = useState({ msg: "", type: "ok" });
+  const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast({ msg: "", type: "ok" }), 3000); };
+
+  const exportData = () => {
+    try {
+      const data = {
+        qurban_hewan: hewan || [],
+        qurban_mudhohi: mudhohi || [],
+        qurban_mustahiq: mustahiq || [],
+        qurban_sesi: sesi || [],
+        qurban_rab: rab || [],
+        exportedAt: new Date().toISOString(),
+        source: "Firebase Firestore",
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qurban-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+      showToast("Data berhasil diekspor!");
+    } catch (e) {
+      showToast("Gagal mengekspor data.", "err");
+    }
+  };
+
+  const doReset = async () => {
+    if (resetInput !== "RESET") { showToast("Ketik RESET untuk konfirmasi.", "err"); return; }
+    try {
+      showToast("⏳ Menghapus data dari Firestore...");
+      await Promise.all([
+        fsReplaceAll(COL.hewan, []),
+        fsReplaceAll(COL.mudhohi, []),
+        fsReplaceAll(COL.mustahiq, []),
+        fsReplaceAll(COL.sesi, []),
+        fsReplaceAll(COL.rab, []),
+      ]);
+      setHewan([]);
+      setMudhohi([]);
+      setMustahiq([]);
+      setSesi([]);
+      setRab([]);
+      setShowResetConfirm(false);
+      setResetInput("");
+      showToast("✅ Data berhasil direset.");
+    } catch (e) {
+      showToast("Gagal reset data: " + e.message, "err");
+    }
+  };
+
+  return (
+    <div>
+      <Toast msg={toast.msg} type={toast.type} />
+      <div style={{ ...css.card, borderLeft: `3px solid ${C.blue}` }}>
+        <div style={{ fontWeight: 700, color: C.blue, marginBottom: 8 }}>💾 Backup Data</div>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
+          Unduh semua data sebagai file JSON sebagai cadangan.
+        </div>
+        <Btn color={C.blue} onClick={exportData}>⬇️ Ekspor Backup JSON</Btn>
+      </div>
+
+      <div style={{ ...css.card, borderLeft: `3px solid ${C.red}` }}>
+        <div style={{ fontWeight: 700, color: C.red, marginBottom: 8 }}>🗑️ Reset Seluruh Data</div>
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
+          Hapus semua data hewan, shohibul qurban, penerima daging, RAB. Aksi ini tidak bisa dibatalkan.
+        </div>
+        {!showResetConfirm ? (
+          <Btn color={C.red} onClick={() => setShowResetConfirm(true)}>Reset Data...</Btn>
+        ) : (
+          <div>
+            <div style={{ fontSize: 13, color: C.red, marginBottom: 10 }}>Ketik <strong>RESET</strong> untuk mengkonfirmasi:</div>
+            <Input value={resetInput} onChange={setResetInput} placeholder="RESET" />
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn color={C.red} onClick={doReset} style={{ flex: 1 }}>Konfirmasi Reset</Btn>
+              <Btn color={C.muted} onClick={() => { setShowResetConfirm(false); setResetInput(""); }} style={{ flex: 1 }}>Batal</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════
 // ROOT APP
 // ══════════════════════════════════════════════════════════════
