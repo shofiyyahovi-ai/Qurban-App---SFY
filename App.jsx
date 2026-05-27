@@ -41,7 +41,6 @@ const COL = {
   mustahiq: "qurban_mustahiq",
   sesi:     "qurban_sesi",
   rab:      "qurban_rab",
-  auditlog: "qurban_auditlog",
   panitia:  "qurban_panitia",
   config:   "qurban_config",
 };
@@ -268,23 +267,6 @@ function saveSession(session, remember) {
 function clearSession() {
   sessionStorage.removeItem("qurban_session");
   localStorage.removeItem("qurban_session_remember");
-}
-
-// ── Audit log helper ──────────────────────────────────────────
-// BR-LOG-01, BR-LOG-02, BR-LOG-03
-function createLogEntry(session, aksi, modul, targetId, targetDesc, detail = {}) {
-  return {
-    id: "LOG_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-    waktu: now(),
-    panitiaId: session?.panitiaId || "SYSTEM",
-    panitiaName: session?.panitiaName || "System",
-    role: session?.role || "-",
-    aksi,
-    modul,
-    targetId: targetId || "",
-    targetDesc: targetDesc || "",
-    detail,
-  };
 }
 
 // ── Fonnte WA sender ──────────────────────────────────────────
@@ -555,7 +537,7 @@ function isHewanTerkunci() { return false; }
 // LOGIN PAGE
 // ══════════════════════════════════════════════════════════════
 // BR-AUTH-01 ~ BR-AUTH-08
-function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
+function LoginPage({ onLogin, panitiaList, setPanitiaList}) {
   const [username, setUsername] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
@@ -575,7 +557,6 @@ function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
     // BR-AUTH-03: akun nonaktif
     if (user.status === "nonaktif") {
       setErr("Akun Anda telah dinonaktifkan. Hubungi admin.");
-      addLog(null, "AUTH_LOGIN_LOCKED", "AUTH", user.id, user.nama, { info: "Akun nonaktif" });
       return;
     }
 
@@ -583,7 +564,6 @@ function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
     if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
       const sisa = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
       setLockMsg(`Akun terkunci. Coba lagi dalam ${sisa} menit.`);
-      addLog(null, "AUTH_LOGIN_LOCKED", "AUTH", user.id, user.nama, { info: "Akun terkunci sementara" });
       return;
     }
 
@@ -601,7 +581,6 @@ function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
       const lockedUntil = locked ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
       setPanitiaList(prev => prev.map(u => u.id === user.id ? { ...u, loginAttempts: attempts, lockedUntil } : u));
       setErr("Username atau password salah.");
-      addLog(null, "AUTH_LOGIN_FAIL", "AUTH", user.id, user.nama, { attempts });
       if (locked) setLockMsg("Akun dikunci 15 menit karena 5x gagal login.");
       setBusy(false);
       return;
@@ -627,7 +606,6 @@ function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
       remember,
     };
     saveSession(session, remember);
-    addLog(session, "AUTH_LOGIN_OK", "AUTH", user.id, user.nama, migratedHash ? { hashMigrated: true } : {});
     setBusy(false);
     onLogin(session);
   };
@@ -675,7 +653,7 @@ function LoginPage({ onLogin, panitiaList, setPanitiaList, addLog }) {
 // ══════════════════════════════════════════════════════════════
 // GANTI PASSWORD (BR-AUTH-08)
 // ══════════════════════════════════════════════════════════════
-function GantiPasswordModal({ session, setPanitiaList, onDone, addLog }) {
+function GantiPasswordModal({ session, setPanitiaList, onDone }) {
   const [pass1, setPass1] = useState("");
   const [pass2, setPass2] = useState("");
   const [err, setErr] = useState("");
@@ -702,7 +680,6 @@ function GantiPasswordModal({ session, setPanitiaList, onDone, addLog }) {
         ? { ...u, passwordHash: newHash, mustChangePassword: false, loginAttempts: 0, lockedUntil: null, updatedAt: now(), updatedBy: session.panitiaId }
         : u
     ));
-    addLog(session, "AUTH_CHANGE_PASSWORD", "AUTH", session.panitiaId, session.panitiaName, {});
     setBusy(false);
     onDone();
   };
@@ -836,7 +813,7 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
 // ══════════════════════════════════════════════════════════════
 // HEWAN PAGE
 // ══════════════════════════════════════════════════════════════
-function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
+function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session }) {
   const perm = usePermission(session);
   const [tabJenis, setTabJenis] = useState("Sapi");
   const [modal, setModal] = useState(null); // null | "add" | "edit"
@@ -882,7 +859,6 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
       const prefix = form.jenis === "Sapi" ? "S" : form.jenis === "Kambing" ? "K" : "D";
       const newHewan = { ...form, id: prefix + uuid(), createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), statusHistory: [] };
       setHewan(prev => [...prev, newHewan]);
-      addLog(session, "HEWAN_CREATED", "HEWAN", newHewan.id, newHewan.nama, { sesudah: newHewan });
       showToast(`${form.jenis} "${form.nama}" berhasil ditambahkan!`);
     } else {
       // EC-09: Guard di handler
@@ -890,7 +866,6 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
       if (isHewanTerkunci(existing, session)) { showToast("Tidak bisa edit hewan yang sudah Selesai.", "err"); return; }
       const updated = { ...form, updatedBy: session.panitiaId, updatedAt: now() };
       setHewan(prev => prev.map(h => h.id === form.id ? updated : h));
-      addLog(session, "HEWAN_UPDATED", "HEWAN", form.id, form.nama, { sebelum: existing, sesudah: updated });
       showToast(`Data "${form.nama}" berhasil diperbarui.`);
     }
     setModal(null);
@@ -913,7 +888,6 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
     if (newStatus !== expectedNext) { showToast("Transisi status tidak valid.", "err"); return; }
     const histEntry = { dari: h.status, ke: newStatus, oleh: session.panitiaId, waktu: now() };
     setHewan(prev => prev.map(x => x.id === id ? { ...x, status: newStatus, updatedBy: session.panitiaId, updatedAt: now(), statusHistory: [...(x.statusHistory || []), histEntry] } : x));
-    addLog(session, "HEWAN_STATUS_UPDATED", "HEWAN", id, h.nama, { dari: h.status, ke: newStatus });
     showToast(`Status diperbarui ke "${newStatus}"`);
   };
 
@@ -922,7 +896,6 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
     const h = hewan.find(x => x.id === rollbackModal.id);
     const histEntry = { dari: h.status, ke: rollbackModal.targetStatus, oleh: session.panitiaId, waktu: now(), alasan: rollbackAlasan };
     setHewan(prev => prev.map(x => x.id === rollbackModal.id ? { ...x, status: rollbackModal.targetStatus, updatedBy: session.panitiaId, updatedAt: now(), statusHistory: [...(x.statusHistory || []), histEntry] } : x));
-    addLog(session, "HEWAN_STATUS_ROLLBACK", "HEWAN", rollbackModal.id, h.nama, { dari: h.status, ke: rollbackModal.targetStatus, alasan: rollbackAlasan });
     showToast(`Status di-rollback ke "${rollbackModal.targetStatus}"`);
     setRollbackModal(null);
     setRollbackAlasan("");
@@ -934,7 +907,6 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
     const terdampak = mudhohi.filter(m => m.hewanId === confirmId).length;
     setHewan(prev => prev.filter(x => x.id !== confirmId));
     if (terdampak) setMudhohi(prev => prev.filter(m => m.hewanId !== confirmId));
-    addLog(session, "HEWAN_DELETED", "HEWAN", confirmId, h?.nama, { terdampakMudhohi: terdampak });
     setConfirmId(null);
     if (terdampak) showToast(`Hewan dihapus beserta ${terdampak} shohibul qurban terdampak.`, "err");
     else showToast("Hewan berhasil dihapus.");
@@ -1068,7 +1040,7 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session, addLog }) {
 // ══════════════════════════════════════════════════════════════
 // NOTIF SEMBELIH MODAL
 // ══════════════════════════════════════════════════════════════
-function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMudhohi, addLog, onClose }) {
+function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMudhohi, onClose }) {
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [pesanCustom, setPesanCustom] = useState("");
@@ -1126,7 +1098,6 @@ function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMud
     else setResult({ ok: false, msg: `Gagal kirim: ${res.reason || "error"}` });
     // BR-WA-02: catat log WA
     setMudhohi(prev => prev.map(x => x.id === m.id ? { ...x, waLog: [...(x.waLog || []), { waktu: now(), dikirimOleh: session.panitiaId, status: ok ? "ok" : "gagal", reason: res.reason }] } : x));
-    addLog(session, ok ? "MUDHOHI_WA_SENT" : "MUDHOHI_WA_FAILED", "WA", m.id, m.nama, { hp: m.hp, status: ok ? "ok" : "gagal" });
   };
 
   return (
@@ -1167,7 +1138,7 @@ function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMud
 // ══════════════════════════════════════════════════════════════
 // MUDHOHI PAGE
 // ══════════════════════════════════════════════════════════════
-function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog }) {
+function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session}) {
   const perm = usePermission(session);
   const [modal, setModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
@@ -1219,13 +1190,11 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog 
     if (modal === "add") {
       const newM = { ...form, id: "M" + uuid(), createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), cicilanLog: [], waLog: [] };
       setMudhohi(prev => [...prev, newM]);
-      addLog(session, "MUDHOHI_CREATED", "MUDHOHI", newM.id, newM.nama, { sesudah: newM });
       if (fonnteToken && !skipWA) {
         setSending(true);
         const res = await sendWA(fonnteToken, form.hp, buildWAMsg());
         setSending(false);
         setMudhohi(prev => prev.map(x => x.id === newM.id ? { ...x, waLog: [{ waktu: now(), dikirimOleh: session.panitiaId, status: res.status ? "ok" : "gagal", reason: res.reason }] } : x));
-        addLog(session, res.status ? "MUDHOHI_WA_SENT" : "MUDHOHI_WA_FAILED", "WA", newM.id, newM.nama, { hp: form.hp });
         showToast("Data disimpan & notif WA terkirim!");
       } else {
         showToast("Data disimpan!");
@@ -1234,7 +1203,6 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog 
       const existing = mudhohi.find(m => m.id === form.id);
       const updated = { ...form, updatedBy: session.panitiaId, updatedAt: now(), cicilanLog: existing.cicilanLog, waLog: existing.waLog };
       setMudhohi(prev => prev.map(m => m.id === form.id ? updated : m));
-      addLog(session, "MUDHOHI_UPDATED", "MUDHOHI", form.id, form.nama, { sebelum: existing, sesudah: updated });
       showToast("Data diperbarui!");
     }
     setModal(null);
@@ -1258,7 +1226,6 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog 
       return;
     }
     setMudhohi(prev => prev.filter(x => x.id !== confirmId));
-    addLog(session, "MUDHOHI_DELETED", "MUDHOHI", confirmId, m?.nama, {});
     setConfirmId(null);
     showToast("Shohibul qurban dihapus.");
   };
@@ -1412,7 +1379,6 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog 
           fonnteToken={fonnteToken}
           session={session}
           setMudhohi={setMudhohi}
-          addLog={addLog}
           onClose={() => setNotifTarget(null)}
         />
       )}
@@ -1423,7 +1389,7 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session, addLog 
 // ══════════════════════════════════════════════════════════════
 // MUSTAHIQ PAGE
 // ══════════════════════════════════════════════════════════════
-function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog }) {
+function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session}) {
   const perm = usePermission(session);
   const [tab, setTab] = useState("mustahiq");
   const [modal, setModal] = useState(null);
@@ -1457,13 +1423,11 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
     if (modal === "add") {
       const newM = { ...form, id: "P" + uuid(), sudahAmbil: false, createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), ambilLog: { ditandaiOleh: null, ditandaiWaktu: null, dibatalkanOleh: null, dibatalkanWaktu: null, alasanBatal: null } };
       setMustahiq(prev => [...prev, newM]);
-      addLog(session, "MUSTAHIQ_CREATED", "MUSTAHIQ", newM.id, newM.nama, { sesudah: newM });
       showToast(`${form.nama} berhasil ditambahkan!`);
     } else {
       const existing = mustahiq.find(m => m.id === form.id);
       const updated = { ...form, sudahAmbil: existing.sudahAmbil, ambilLog: existing.ambilLog, updatedBy: session.panitiaId, updatedAt: now(), createdBy: existing.createdBy, createdAt: existing.createdAt, cicilanLog: existing.cicilanLog, waLog: existing.waLog };
       setMustahiq(prev => prev.map(m => m.id === form.id ? updated : m));
-      addLog(session, "MUSTAHIQ_UPDATED", "MUSTAHIQ", form.id, form.nama, { sebelum: existing, sesudah: updated });
       showToast("Data diperbarui.");
     }
     setModal(null);
@@ -1474,10 +1438,8 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
     if (sesiModal === "add") {
       const newS = { ...sesiForm, id: "SE" + uuid(), createdBy: session.panitiaId, createdAt: now() };
       setSesi(prev => [...prev, newS]);
-      addLog(session, "SESI_CREATED", "SESI", newS.id, newS.nama, {});
     } else {
       setSesi(prev => prev.map(s => s.id === sesiForm.id ? { ...sesiForm, createdBy: s.createdBy, createdAt: s.createdAt } : s));
-      addLog(session, "SESI_UPDATED", "SESI", sesiForm.id, sesiForm.nama, {});
     }
     setSesiModal(null);
     showToast("Sesi disimpan.");
@@ -1494,7 +1456,6 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
       ? { ...target.ambilLog, ditandaiOleh: session.panitiaId, ditandaiWaktu: now() }
       : target.ambilLog; // batalkan ditangani lewat batalModal
     setMustahiq(prev => prev.map(m => m.id === confirmTandai.id ? { ...m, sudahAmbil: sudahAmbilBaru, ambilLog } : m));
-    addLog(session, "MUSTAHIQ_AMBIL_DITANDAI", "MUSTAHIQ", target.id, target.nama, { sudahAmbil: sudahAmbilBaru });
     showToast(sudahAmbilBaru ? `${confirmTandai.nama} sudah ambil daging.` : "Ditandai ulang.");
     setConfirmTandai(null);
     setTimeout(() => { tandaiLockRef.current = false; }, 1000);
@@ -1506,7 +1467,6 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
     const target = mustahiq.find(m => m.id === batalModal.id);
     const ambilLog = { ...target.ambilLog, dibatalkanOleh: session.panitiaId, dibatalkanWaktu: now(), alasanBatal: batalAlasan };
     setMustahiq(prev => prev.map(m => m.id === batalModal.id ? { ...m, sudahAmbil: false, ambilLog } : m));
-    addLog(session, "MUSTAHIQ_AMBIL_DIBATALKAN", "MUSTAHIQ", batalModal.id, batalModal.nama, { alasan: batalAlasan });
     showToast("Pengambilan dibatalkan.");
     setBatalModal(null); setBatalAlasan("");
   };
@@ -1523,7 +1483,6 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
   const delMustahiq = () => {
     const m = mustahiq.find(x => x.id === confirmId);
     setMustahiq(prev => prev.filter(x => x.id !== confirmId));
-    addLog(session, "MUSTAHIQ_DELETED", "MUSTAHIQ", confirmId, m?.nama, {});
     setConfirmId(null);
     showToast("Penerima daging dihapus.");
   };
@@ -1531,7 +1490,6 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
   const delSesi = () => {
     const s = sesi.find(x => x.id === confirmSesiId);
     setSesi(prev => prev.filter(x => x.id !== confirmSesiId));
-    addLog(session, "SESI_DELETED", "SESI", confirmSesiId, s?.nama, {});
     setConfirmSesiId(null);
     showToast("Sesi dihapus.");
   };
@@ -1716,7 +1674,7 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session, addLog })
 // ══════════════════════════════════════════════════════════════
 // RAB PAGE
 // ══════════════════════════════════════════════════════════════
-function RABPage({ rab, setRab, mudhohi, session, addLog }) {
+function RABPage({ rab, setRab, mudhohi, session}) {
   const perm = usePermission(session);
   const [modal, setModal] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
@@ -1745,14 +1703,12 @@ function RABPage({ rab, setRab, mudhohi, session, addLog }) {
     if (modal === "add") {
       const newR = { ...form, id: "R" + uuid(), createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), verified: false, verifiedBy: null, verifiedAt: null };
       setRab(prev => [...prev, newR]);
-      addLog(session, "RAB_CREATED", "RAB", newR.id, newR.nama, { sesudah: newR });
     } else {
       const existing = rab.find(r => r.id === form.id);
       // BR-RAB-04: item verified tidak bisa diedit panitia
       if (existing?.verified && session.role !== "admin") { showToast("Item yang sudah diverifikasi tidak bisa diedit oleh panitia.", "err"); return; }
       const updated = { ...form, createdBy: existing.createdBy, createdAt: existing.createdAt, updatedBy: session.panitiaId, updatedAt: now(), verified: existing.verified, verifiedBy: existing.verifiedBy, verifiedAt: existing.verifiedAt };
       setRab(prev => prev.map(r => r.id === form.id ? updated : r));
-      addLog(session, "RAB_UPDATED", "RAB", form.id, form.nama, { sebelum: existing, sesudah: updated });
     }
     setModal(null);
     showToast("Item RAB disimpan.");
@@ -1761,7 +1717,6 @@ function RABPage({ rab, setRab, mudhohi, session, addLog }) {
   const del = () => {
     const r = rab.find(x => x.id === confirmId);
     setRab(prev => prev.filter(r => r.id !== confirmId));
-    addLog(session, "RAB_DELETED", "RAB", confirmId, r?.nama, {});
     setConfirmId(null);
     showToast("Item dihapus.");
   };
@@ -1770,7 +1725,6 @@ function RABPage({ rab, setRab, mudhohi, session, addLog }) {
   const doVerify = (r) => {
     const updated = { ...r, verified: !r.verified, verifiedBy: !r.verified ? session.panitiaId : null, verifiedAt: !r.verified ? now() : null };
     setRab(prev => prev.map(x => x.id === r.id ? updated : x));
-    addLog(session, "RAB_VERIFIED", "RAB", r.id, r.nama, { verified: !r.verified });
     showToast(updated.verified ? "Item diverifikasi." : "Verifikasi dibatalkan.");
   };
 
@@ -1854,7 +1808,7 @@ function RABPage({ rab, setRab, mudhohi, session, addLog }) {
 // ══════════════════════════════════════════════════════════════
 // KELOLA AKUN (Admin Only)
 // ══════════════════════════════════════════════════════════════
-function KelolaPanitiaPage({ panitiaList, setPanitiaList, session, addLog }) {
+function KelolaPanitiaPage({ panitiaList, setPanitiaList, session }) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ nama: "", username: "", password: "", role: "panitia" });
   const [errors, setErrors] = useState({});
@@ -1903,7 +1857,6 @@ function KelolaPanitiaPage({ panitiaList, setPanitiaList, session, addLog }) {
           updatedBy: session.panitiaId,
         };
         setPanitiaList(prev => [...prev, newU]);
-        addLog(session, "AUTH_ACCOUNT_CREATED", "AUTH", newU.id, newU.nama, { role: newU.role });
         showToast(`Akun "${form.nama}" berhasil dibuat.`);
       } else {
         const existing = panitiaList.find(u => u.id === form.id);
@@ -1921,7 +1874,6 @@ function KelolaPanitiaPage({ panitiaList, setPanitiaList, session, addLog }) {
           updated.loginAttempts = 0;
           updated.lockedUntil = null;
         }
-        if (existing.role !== form.role) addLog(session, "AUTH_ROLE_CHANGED", "AUTH", form.id, form.nama, { dari: existing.role, ke: form.role });
         setPanitiaList(prev => prev.map(u => u.id === form.id ? updated : u));
         showToast("Akun diperbarui.");
       }
@@ -1947,7 +1899,6 @@ function KelolaPanitiaPage({ panitiaList, setPanitiaList, session, addLog }) {
     }
     const newStatus = u.status === "aktif" ? "nonaktif" : "aktif";
     setPanitiaList(prev => prev.map(x => x.id === u.id ? { ...x, status: newStatus, updatedAt: now(), updatedBy: session.panitiaId } : x));
-    addLog(session, newStatus === "nonaktif" ? "AUTH_ACCOUNT_DEACTIVATED" : "AUTH_ACCOUNT_REACTIVATED", "AUTH", u.id, u.nama, {});
     showToast(`Akun "${u.nama}" ${newStatus === "nonaktif" ? "dinonaktifkan" : "diaktifkan"}.`);
   };
 
@@ -1994,244 +1945,6 @@ function KelolaPanitiaPage({ panitiaList, setPanitiaList, session, addLog }) {
   );
 }
 
-// ══════════════════════════════════════════════════════════════
-// AUDIT LOG PAGE (Admin: semua; Panitia: milik sendiri)
-// ══════════════════════════════════════════════════════════════
-function AuditLogPage({ auditLog, session }) {
-  const [filterModul, setFilterModul] = useState("Semua");
-  const [search, setSearch] = useState("");
-
-  const MODUL_LIST = ["AUTH", "HEWAN", "MUDHOHI", "MUSTAHIQ", "SESI", "RAB", "WA"];
-
-  const logs = session.role === "admin"
-    ? auditLog
-    : auditLog.filter(l => l.panitiaId === session.panitiaId);
-
-  const filtered = logs.filter(l => {
-    const matchModul = filterModul === "Semua" || l.modul === filterModul;
-    const matchSearch = !search || l.targetDesc?.toLowerCase().includes(search.toLowerCase()) || l.aksi?.toLowerCase().includes(search.toLowerCase()) || l.panitiaName?.toLowerCase().includes(search.toLowerCase());
-    return matchModul && matchSearch;
-  });
-
-  const AKSI_COLOR = {
-    AUTH_LOGIN_OK: C.green, AUTH_LOGIN_FAIL: C.red, AUTH_LOGIN_LOCKED: C.red,
-    HEWAN_CREATED: C.green, HEWAN_UPDATED: C.blue, HEWAN_DELETED: C.red, HEWAN_STATUS_UPDATED: C.orange, HEWAN_STATUS_ROLLBACK: C.red,
-    MUDHOHI_CREATED: C.green, MUDHOHI_UPDATED: C.blue, MUDHOHI_DELETED: C.red,
-    MUSTAHIQ_AMBIL_DITANDAI: C.green, MUSTAHIQ_AMBIL_DIBATALKAN: C.orange,
-    RAB_VERIFIED: C.gold,
-  };
-
-  return (
-    <div>
-      <SectionTitle emoji="📋" title="Audit Log" sub={session.role === "admin" ? "Semua aktivitas panitia" : "Aktivitas Anda"} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cari aksi, nama, target..." style={css.input} />
-        <select value={filterModul} onChange={e => setFilterModul(e.target.value)} style={css.select}>
-          <option value="Semua">Semua Modul</option>
-          {MODUL_LIST.map(m => <option key={m}>{m}</option>)}
-        </select>
-      </div>
-      <div style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>{filtered.length} entri log</div>
-      {filtered.length === 0 && (
-        <div style={{ ...css.card, textAlign: "center", color: C.muted, padding: "40px 16px" }}>Belum ada log.</div>
-      )}
-      {filtered.slice(0, 100).map(l => (
-        <div key={l.id} style={{ ...css.card, padding: "10px 14px", borderLeft: `3px solid ${AKSI_COLOR[l.aksi] || C.muted}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: AKSI_COLOR[l.aksi] || C.text }}>{l.aksi}</div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                👤 {l.panitiaName} ({l.role}) · 📁 {l.modul}
-              </div>
-              {l.targetDesc && <div style={{ fontSize: 12, color: C.text, marginTop: 2 }}>🎯 {l.targetDesc}</div>}
-              {l.detail?.alasan && <div style={{ fontSize: 11, color: C.orange, marginTop: 2 }}>Alasan: {l.detail.alasan}</div>}
-            </div>
-            <div style={{ fontSize: 10, color: C.muted, textAlign: "right", flexShrink: 0 }}>
-              {new Date(l.waktu).toLocaleDateString("id", { day: "2-digit", month: "short" })}
-              <br />{new Date(l.waktu).toLocaleTimeString("id", { hour: "2-digit", minute: "2-digit" })}
-            </div>
-          </div>
-        </div>
-      ))}
-      {filtered.length > 100 && <div style={{ textAlign: "center", color: C.muted, fontSize: 12, padding: "8px 0" }}>Menampilkan 100 terbaru dari {filtered.length} log</div>}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
-// SETTINGS PAGE
-// ══════════════════════════════════════════════════════════════
-function SettingsPage({ session, addLog, hewan, mudhohi, mustahiq, sesi, rab, auditLog, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
-  const [theme, setTheme] = useTheme();
-  const isAdmin = session?.role === "admin";
-
-  const handleThemeChange = (t) => {
-    setTheme(t);
-    addLog(session, "CONFIG_UPDATED", "SETTINGS", "CONFIG", "Theme", { theme: t });
-  };
-
-  return (
-    <div>
-      <SectionTitle emoji="⚙️" title="Pengaturan" sub="Konfigurasi tampilan dan data aplikasi" />
-
-      {/* Tampilan / Theme */}
-      <div style={css.card}>
-        <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>🎨 Tampilan</div>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Pilih tema tampilan aplikasi sesuai preferensi kamu.</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={() => handleThemeChange("dark")}
-            style={{
-              flex: 1,
-              padding: "14px 10px",
-              borderRadius: 10,
-              border: `2px solid ${theme === "dark" ? C.green : C.border}`,
-              background: theme === "dark" ? C.greenDark : C.inputBg,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              transition: "all 0.15s",
-            }}>
-            <span style={{ fontSize: 24 }}>🌙</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "dark" ? C.greenLight : C.muted }}>Dark Mode</span>
-            {theme === "dark" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
-          </button>
-          <button
-            onClick={() => handleThemeChange("light")}
-            style={{
-              flex: 1,
-              padding: "14px 10px",
-              borderRadius: 10,
-              border: `2px solid ${theme === "light" ? C.green : C.border}`,
-              background: theme === "light" ? C.greenDark : C.inputBg,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              transition: "all 0.15s",
-            }}>
-            <span style={{ fontSize: 24 }}>☀️</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "light" ? C.greenLight : C.muted }}>Light Mode</span>
-            {theme === "light" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
-          </button>
-        </div>
-      </div>
-
-      <div style={{ ...css.card, borderLeft: `3px solid ${C.orange}` }}>
-        <div style={{ fontWeight: 700, color: C.orange, marginBottom: 8 }}>⚠️ Catatan Penting</div>
-        <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
-          Data aplikasi tersimpan di <strong style={{ color: C.green }}>Firebase Firestore</strong> dan tersinkronisasi secara real-time di semua perangkat. Backup tetap disarankan sebagai cadangan tambahan.
-        </div>
-      </div>
-
-      {isAdmin && <ResetDataSection session={session} addLog={addLog} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} auditLog={auditLog} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
-    </div>
-  );
-}
-
-// ── Reset & Export section (Admin Only) ───────────────────────
-function ResetDataSection({ session, addLog, hewan, mudhohi, mustahiq, sesi, rab, auditLog, setHewan, setMudhohi, setMustahiq, setSesi, setRab }) {
-  const [showExportConfirm, setShowExportConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetInput, setResetInput] = useState("");
-  const [toast, setToast] = useState({ msg: "", type: "ok" });
-  const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast({ msg: "", type: "ok" }), 3000); };
-
-  const exportData = () => {
-    // SECURITY: passwordHash tidak diikutsertakan dalam export.
-    try {
-      const data = {
-        qurban_hewan: hewan || [],
-        qurban_mudhohi: mudhohi || [],
-        qurban_mustahiq: mustahiq || [],
-        qurban_sesi: sesi || [],
-        qurban_rab: rab || [],
-        qurban_auditlog: auditLog || [],
-        exportedAt: new Date().toISOString(),
-        source: "Firebase Firestore",
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `qurban-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1500);
-      addLog(session, "DATA_EXPORTED", "SETTINGS", "BACKUP", "Backup JSON", {});
-      showToast("Data berhasil diekspor!");
-    } catch (e) {
-      showToast("Gagal mengekspor data.", "err");
-    }
-  };
-
-  const doReset = async () => {
-    if (resetInput !== "RESET") { showToast("Ketik RESET untuk konfirmasi.", "err"); return; }
-    try {
-      showToast("⏳ Menghapus data dari Firestore...");
-      // Hapus semua koleksi data (kecuali panitia & config)
-      await Promise.all([
-        fsReplaceAll(COL.hewan, []),
-        fsReplaceAll(COL.mudhohi, []),
-        fsReplaceAll(COL.mustahiq, []),
-        fsReplaceAll(COL.sesi, []),
-        fsReplaceAll(COL.rab, []),
-        fsReplaceAll(COL.auditlog, []),
-      ]);
-      // Update local state langsung (onSnapshot akan konfirmasi)
-      setHewan([]);
-      setMudhohi([]);
-      setMustahiq([]);
-      setSesi([]);
-      setRab([]);
-      addLog(session, "DATA_RESET", "SETTINGS", "RESET", "Reset Data App", {});
-      setShowResetConfirm(false);
-      setResetInput("");
-      showToast("✅ Data berhasil direset dari Firestore.");
-    } catch (e) {
-      showToast("Gagal reset data: " + e.message, "err");
-    }
-  };
-
-  return (
-    <div>
-      <Toast msg={toast.msg} type={toast.type} />
-      <div style={{ ...css.card, borderLeft: `3px solid ${C.blue}` }}>
-        <div style={{ fontWeight: 700, color: C.blue, marginBottom: 8 }}>💾 Backup Data</div>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-          Unduh semua data sebagai file JSON sebagai cadangan sebelum ganti perangkat atau browser.
-        </div>
-        <Btn color={C.blue} onClick={exportData}>⬇️ Ekspor Backup JSON</Btn>
-      </div>
-
-      <div style={{ ...css.card, borderLeft: `3px solid ${C.red}` }}>
-        <div style={{ fontWeight: 700, color: C.red, marginBottom: 8 }}>🗑️ Reset Seluruh Data</div>
-        <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-          Hapus semua data hewan, shohibul qurban, penerima daging, RAB, dan log. Akun panitia dan token WA tidak ikut dihapus. Aksi ini tidak bisa dibatalkan.
-        </div>
-        {!showResetConfirm ? (
-          <Btn color={C.red} onClick={() => setShowResetConfirm(true)}>Reset Data...</Btn>
-        ) : (
-          <div>
-            <div style={{ fontSize: 13, color: C.red, marginBottom: 10 }}>Ketik <strong>RESET</strong> untuk mengkonfirmasi penghapusan data:</div>
-            <Input value={resetInput} onChange={setResetInput} placeholder="RESET" />
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn color={C.red} onClick={doReset} style={{ flex: 1 }}>Konfirmasi Reset</Btn>
-              <Btn color={C.muted} onClick={() => { setShowResetConfirm(false); setResetInput(""); }} style={{ flex: 1 }}>Batal</Btn>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 // ══════════════════════════════════════════════════════════════
 // IMPORT PAGE — Paste tepat sebelum // ROOT APP (baris 2060)
 // Requires: xlsx (npm install xlsx  ATAU  pakai CDN di index.html)
@@ -2312,7 +2025,7 @@ const IMPORT_SYNONYMS = {
   sesi:       ["sesi","sesi pengambilan","waktu ambil","jadwal"],
 };
 
-function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session, addLog }) {
+function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session}) {
   const [tab, setTab] = useState("hewan");
   const [step, setStep] = useState("upload"); // upload | mapping | preview
   const [headers, setHeaders] = useState([]);
@@ -2474,8 +2187,6 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
     if (tab === "hewan") setHewan(prev => [...prev, ...newItems]);
     else if (tab === "mudhohi") setMudhohi(prev => [...prev, ...newItems]);
     else setMustahiq(prev => [...prev, ...newItems]);
-
-    addLog(session, "DATA_IMPORTED", "IMPORT", tab.toUpperCase(), schema.label, { jumlah: newItems.length });
     showToast(`🎉 ${newItems.length} data berhasil diimport!`);
     setTimeout(() => switchTab(tab), 1200);
   };
@@ -2670,7 +2381,6 @@ const NAV = [
   { id: "mudhohi", emoji: "💳", label: "Shohibul Qurban" },
   { id: "mustahiq", emoji: "🎟️", label: "Penerima Daging" },
   { id: "rab", emoji: "💰", label: "RAB" },
-  { id: "log", emoji: "📋", label: "Log" },
   { id: "import", emoji: "📥", label: "Import" },
   { id: "settings", emoji: "⚙️", label: "Pengaturan" },
 ];
@@ -2698,7 +2408,7 @@ export default function App() {
   // Semua data utama diambil realtime dari Firestore.
   // `loading` true sampai semua 6 koleksi sudah menerima snapshot pertama.
   const [loading, setLoading] = useState(true);
-  const loadedRef = useRef({ hewan: false, mudhohi: false, mustahiq: false, sesi: false, rab: false, auditlog: false });
+  const loadedRef = useRef({ hewan: false, mudhohi: false, mustahiq: false, sesi: false, rab: false });
 
   const markLoaded = (key) => {
     loadedRef.current[key] = true;
@@ -2710,7 +2420,6 @@ export default function App() {
   const [mustahiq, setMustahiqState] = useState(SEED_MUSTAHIQ);
   const [sesi, setSesiState] = useState(SEED_SESI);
   const [rab, setRabState] = useState(SEED_RAB);
-  const [auditLog, setAuditLogState] = useState([]);
 
   // Keep prev refs for diff-sync
   const prevHewan    = useRef(hewan);
@@ -2727,12 +2436,6 @@ export default function App() {
       fsSubscribe(COL.mustahiq, data => { setMustahiqState(data); prevMustahiq.current = data; markLoaded("mustahiq"); }),
       fsSubscribe(COL.sesi, data => { setSesiState(data); prevSesi.current = data; markLoaded("sesi"); }),
       fsSubscribe(COL.rab, data => { setRabState(data); prevRab.current = data; markLoaded("rab"); }),
-      fsSubscribe(COL.auditlog, data => {
-        // sort by waktu desc, keep latest 500
-        const sorted = [...data].sort((a, b) => (b.waktu || "").localeCompare(a.waktu || "")).slice(0, 500);
-        setAuditLogState(sorted);
-        markLoaded("auditlog");
-      }),
     ];
     return () => unsubs.forEach(u => u());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2786,11 +2489,6 @@ export default function App() {
     });
   }, []);
 
-  const addLog = useCallback((sess, aksi, modul, targetId, targetDesc, detail = {}) => {
-    const entry = createLogEntry(DUMMY_SESSION, aksi, modul, targetId, targetDesc, detail);
-    // Write directly to Firestore; the onSnapshot listener will update the local state.
-    fsSet(COL.auditlog, entry);
-  }, []);
 
   useEffect(() => {
     if (navRef.current) {
@@ -2828,13 +2526,12 @@ export default function App() {
       {/* Pages */}
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "16px 12px 96px" }}>
         {page === "dashboard" && <Dashboard hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} setPage={setPage} />}
-        {page === "hewan" && <HewanPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} session={DUMMY_SESSION} addLog={addLog} />}
-        {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken="" session={DUMMY_SESSION} addLog={addLog} />}
-        {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={DUMMY_SESSION} addLog={addLog} />}
-        {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={DUMMY_SESSION} addLog={addLog} />}
-        {page === "import" && <ImportPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} mustahiq={mustahiq} setMustahiq={setMustahiq} session={DUMMY_SESSION} addLog={addLog} />}
-        {page === "log" && <AuditLogPage auditLog={auditLog} session={DUMMY_SESSION} />}
-        {page === "settings" && <SettingsPage session={DUMMY_SESSION} addLog={addLog} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} auditLog={auditLog} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
+        {page === "hewan" && <HewanPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} session={DUMMY_SESSION} />}
+        {page === "mudhohi" && <MudhohiPage mudhohi={mudhohi} setMudhohi={setMudhohi} hewan={hewan} fonnteToken="" session={DUMMY_SESSION} />}
+        {page === "mustahiq" && <MustahiqPage mustahiq={mustahiq} setMustahiq={setMustahiq} sesi={sesi} setSesi={setSesi} session={DUMMY_SESSION} />}
+        {page === "rab" && <RABPage rab={rab} setRab={setRab} mudhohi={mudhohi} session={DUMMY_SESSION} />}
+        {page === "import" && <ImportPage hewan={hewan} setHewan={setHewan} mudhohi={mudhohi} setMudhohi={setMudhohi} mustahiq={mustahiq} setMustahiq={setMustahiq} session={DUMMY_SESSION} />}
+        {page === "settings" && <SettingsPage session={DUMMY_SESSION} hewan={hewan} mudhohi={mudhohi} mustahiq={mustahiq} sesi={sesi} rab={rab} setHewan={setHewan} setMudhohi={setMudhohi} setMustahiq={setMustahiq} setSesi={setSesi} setRab={setRab} />}
       </div>
     </div>
   );
