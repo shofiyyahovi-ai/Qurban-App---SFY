@@ -2056,6 +2056,434 @@ function ResetDataSection({ session, addLog }) {
     </div>
   );
 }
+// ══════════════════════════════════════════════════════════════
+// IMPORT PAGE — Paste tepat sebelum // ROOT APP (baris 2060)
+// Requires: xlsx (npm install xlsx  ATAU  pakai CDN di index.html)
+//   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+// ══════════════════════════════════════════════════════════════
+
+// Jika pakai bundler (Vite/CRA), uncomment baris ini:
+// import * as XLSX from 'xlsx';
+// Jika pakai CDN, biarkan — XLSX sudah tersedia via window.XLSX
+
+const IMPORT_SCHEMAS = {
+  hewan: {
+    label: "Hewan",
+    emoji: "🐾",
+    fields: [
+      { key: "nama",      label: "Nama Hewan",        required: true,  hint: "Cth: Sapi Gemuk 1" },
+      { key: "jenis",     label: "Jenis",             required: true,  hint: "Sapi / Kambing / Domba" },
+      { key: "berat",     label: "Berat (kg)",        required: true,  hint: "Angka, cth: 350" },
+      { key: "asal",      label: "Asal / Peternak",   required: false, hint: "Cth: Pak Budi" },
+      { key: "harga",     label: "Harga (Rp)",        required: true,  hint: "Angka, cth: 15000000" },
+      { key: "kapasitas", label: "Kapasitas Peserta", required: false, hint: "7 untuk sapi, 1 untuk kambing/domba" },
+    ],
+    template: [
+      ["nama","jenis","berat","asal","harga","kapasitas"],
+      ["Sapi Gemuk 1","Sapi","380","Pak Budi - Magelang","18000000","7"],
+      ["Kambing Hitam 1","Kambing","35","Pak Ahmad","2500000","1"],
+    ],
+  },
+  mudhohi: {
+    label: "Shohibul Qurban",
+    emoji: "💳",
+    fields: [
+      { key: "nama",       label: "Nama Lengkap",       required: true,  hint: "Cth: Ahmad Fauzi" },
+      { key: "hp",         label: "No. HP / WA",        required: true,  hint: "Format: 08xxxxxxxxxx" },
+      { key: "alamat",     label: "Alamat / RT-RW",     required: false, hint: "Cth: RT 03/RW 02" },
+      { key: "jenisHewan", label: "Jenis Qurban",       required: true,  hint: "Sapi / Kambing / Domba" },
+      { key: "bayar",      label: "Status Bayar",       required: true,  hint: "Lunas / Belum Lunas / Cicilan" },
+      { key: "nominal",    label: "Nominal Bayar (Rp)", required: true,  hint: "Angka, cth: 3000000" },
+    ],
+    template: [
+      ["nama","hp","alamat","jenisHewan","bayar","nominal"],
+      ["Ahmad Fauzi","081234567890","RT 03/RW 02","Sapi","Lunas","3000000"],
+      ["Siti Aminah","082345678901","RT 01/RW 01","Kambing","Belum Lunas","2500000"],
+    ],
+  },
+  mustahiq: {
+    label: "Penerima Daging",
+    emoji: "🎟️",
+    fields: [
+      { key: "nama",    label: "Nama",                  required: true,  hint: "Cth: Ibu Fatimah" },
+      { key: "rt",      label: "RT / RW",               required: false, hint: "Cth: RT 02" },
+      { key: "alamat",  label: "Alamat",                required: false, hint: "Cth: Gg. Mawar No. 3" },
+      { key: "anggota", label: "Jumlah Anggota KK",     required: false, hint: "Angka, cth: 4" },
+      { key: "sesi",    label: "Sesi Pengambilan",      required: false, hint: "Nama sesi yang ada di sistem" },
+    ],
+    template: [
+      ["nama","rt","alamat","anggota","sesi"],
+      ["Ibu Fatimah","RT 02","Gg. Mawar No. 3","4","Sesi 1 - Pagi"],
+      ["Pak Umar","RT 05","Jl. Melati 12","3","Sesi 2 - Siang"],
+    ],
+  },
+};
+
+const IMPORT_SYNONYMS = {
+  nama:       ["nama","name","nama hewan","nama lengkap","nama penerima","nama shohibul"],
+  jenis:      ["jenis","jenis hewan","type","tipe","kategori hewan"],
+  berat:      ["berat","berat (kg)","bobot","kg","weight"],
+  asal:       ["asal","asal/peternak","peternak","asal hewan","origin"],
+  harga:      ["harga","harga (rp)","harga beli","price","nilai"],
+  kapasitas:  ["kapasitas","kapasitas peserta","slot","max peserta"],
+  hp:         ["hp","no hp","no. hp","nomor hp","whatsapp","wa","telepon","phone","no wa","no. wa"],
+  alamat:     ["alamat","address","alamat/rt-rw","rt-rw","domisili"],
+  jenisHewan: ["jenis qurban","jenis hewan","qurban","type","tipe qurban","hewan"],
+  bayar:      ["status bayar","bayar","pembayaran","status pembayaran","status"],
+  nominal:    ["nominal","nominal bayar (rp)","nominal (rp)","jumlah bayar","bayar (rp)","amount","nominal bayar"],
+  rt:         ["rt","rt/rw","rtrw","rt / rw"],
+  anggota:    ["anggota","jumlah anggota kk","anggota kk","jumlah anggota","kk","jumlah kk"],
+  sesi:       ["sesi","sesi pengambilan","waktu ambil","jadwal"],
+};
+
+function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session, addLog }) {
+  const [tab, setTab] = useState("hewan");
+  const [step, setStep] = useState("upload"); // upload | mapping | preview
+  const [headers, setHeaders] = useState([]);
+  const [rawRows, setRawRows] = useState([]);
+  const [colMap, setColMap] = useState({});
+  const [processed, setProcessed] = useState([]);
+  const [filter, setFilter] = useState("all");
+  const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [toast, setToast] = useState({ msg: "", type: "ok" });
+  const fileRef = useRef();
+
+  const showToast = (msg, type = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast({ msg: "", type: "ok" }), 3000);
+  };
+
+  const schema = IMPORT_SCHEMAS[tab];
+
+  // ── Reset saat ganti tab ──────────────────────────────────────
+  const switchTab = (t) => {
+    setTab(t);
+    setStep("upload");
+    setHeaders([]);
+    setRawRows([]);
+    setColMap({});
+    setProcessed([]);
+    setFilter("all");
+    setFileName("");
+  };
+
+  // ── Download template ─────────────────────────────────────────
+  const downloadTemplate = (type) => {
+    const XLSXlib = window.XLSX;
+    if (!XLSXlib) { showToast("Library XLSX belum dimuat. Tambahkan CDN di index.html.", "err"); return; }
+    const s = IMPORT_SCHEMAS[type];
+    const wb = XLSXlib.utils.book_new();
+    const ws = XLSXlib.utils.aoa_to_sheet(s.template);
+    XLSXlib.utils.book_append_sheet(wb, ws, s.label);
+    XLSXlib.writeFile(wb, `template_${type}.xlsx`);
+    showToast(`Template ${s.label} diunduh!`);
+  };
+
+  // ── File parsing ──────────────────────────────────────────────
+  const parseFile = (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast("File terlalu besar (maks 5MB)", "err"); return; }
+    const XLSXlib = window.XLSX;
+    if (!XLSXlib) { showToast("Library XLSX belum dimuat. Tambahkan CDN di index.html.", "err"); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSXlib.read(new Uint8Array(e.target.result), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSXlib.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        if (!data || data.length < 2) { showToast("File kosong atau tidak valid.", "err"); return; }
+        const hdrs = (data[0] || []).map(h => String(h).trim());
+        const rows = data.slice(1).filter(r => r.some(c => c !== ""));
+        setHeaders(hdrs);
+        setRawRows(rows);
+        setFileName(file.name);
+        // Auto-detect mapping
+        const map = {};
+        schema.fields.forEach(f => {
+          const syns = IMPORT_SYNONYMS[f.key] || [f.key];
+          const idx = hdrs.findIndex(h => syns.includes(h.toLowerCase().trim()));
+          map[f.key] = idx >= 0 ? idx : -1;
+        });
+        setColMap(map);
+        setStep("mapping");
+        showToast(`${rows.length} baris berhasil dibaca!`);
+      } catch (err) {
+        showToast("Gagal membaca file: " + err.message, "err");
+      }
+    };
+    reader.onerror = () => showToast("Gagal membaca file.", "err");
+    reader.readAsArrayBuffer(file);
+  };
+
+  // ── Validation ────────────────────────────────────────────────
+  const getVal = (row, key, map) => {
+    const idx = map[key];
+    return (idx !== undefined && idx >= 0) ? String(row[idx] || "").trim() : "";
+  };
+
+  const validateRow = (row, map) => {
+    const errors = [];
+    const g = (k) => getVal(row, k, map);
+    if (tab === "hewan") {
+      if (!g("nama")) errors.push("Nama wajib");
+      if (!["sapi","kambing","domba"].includes(g("jenis").toLowerCase())) errors.push("Jenis: Sapi/Kambing/Domba");
+      if (!g("berat") || isNaN(Number(g("berat"))) || Number(g("berat")) <= 0) errors.push("Berat tidak valid");
+      if (!g("harga") || isNaN(Number(g("harga"))) || Number(g("harga")) <= 0) errors.push("Harga tidak valid");
+    } else if (tab === "mudhohi") {
+      if (!g("nama")) errors.push("Nama wajib");
+      if (!/^08\d{8,12}$/.test(g("hp").replace(/\s/g,""))) errors.push("Format HP: 08xxxxxxxxxx");
+      if (!["sapi","kambing","domba"].includes(g("jenisHewan").toLowerCase())) errors.push("Jenis: Sapi/Kambing/Domba");
+      if (!["lunas","belum lunas","cicilan"].includes(g("bayar").toLowerCase())) errors.push("Bayar: Lunas/Belum Lunas/Cicilan");
+      if (!g("nominal") || isNaN(Number(g("nominal"))) || Number(g("nominal")) <= 0) errors.push("Nominal tidak valid");
+    } else if (tab === "mustahiq") {
+      if (!g("nama")) errors.push("Nama wajib");
+    }
+    return errors;
+  };
+
+  const checkDup = (row, map) => {
+    const g = (k) => getVal(row, k, map);
+    if (tab === "mudhohi") {
+      const hp = g("hp").replace(/\s/g,"");
+      return mudhohi.some(m => m.hp === hp) ? "Nomor HP sudah terdaftar" : null;
+    }
+    if (tab === "hewan") {
+      return hewan.some(h => h.nama.toLowerCase() === g("nama").toLowerCase()) ? "Nama hewan sudah ada" : null;
+    }
+    return null;
+  };
+
+  // ── Process preview ───────────────────────────────────────────
+  const processPreview = () => {
+    const rows = rawRows.map((row, idx) => {
+      const errors = validateRow(row, colMap);
+      const dup = errors.length === 0 ? checkDup(row, colMap) : null;
+      const status = errors.length > 0 ? "invalid" : dup ? "duplicate" : "valid";
+      return { idx, row, errors, dup, status };
+    });
+    setProcessed(rows);
+    setStep("preview");
+    setFilter("all");
+  };
+
+  // ── Import ────────────────────────────────────────────────────
+  const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+  const fixBayar = (s) => {
+    const v = s.toLowerCase().trim();
+    if (v === "lunas") return "Lunas";
+    if (v === "belum lunas") return "Belum Lunas";
+    if (v === "cicilan") return "Cicilan";
+    return s;
+  };
+
+  const doImport = () => {
+    const valid = processed.filter(r => r.status === "valid");
+    if (!valid.length) { showToast("Tidak ada data valid.", "err"); return; }
+    const g = (row, k) => getVal(row, k, colMap);
+    const ts = new Date().toISOString();
+
+    const newItems = valid.map(r => {
+      const base = { id: tab[0].toUpperCase() + uuid(), createdAt: ts, createdBy: session.panitiaId, updatedAt: ts, updatedBy: session.panitiaId };
+      if (tab === "hewan") {
+        const jenis = capitalize(g(r.row,"jenis"));
+        return { ...base, jenis, nama: g(r.row,"nama"), berat: g(r.row,"berat"), asal: g(r.row,"asal"), harga: g(r.row,"harga"), kapasitas: g(r.row,"kapasitas") || (jenis === "Sapi" ? "7" : "1"), status: "Menunggu", statusHistory: [] };
+      } else if (tab === "mudhohi") {
+        return { ...base, nama: g(r.row,"nama"), hp: g(r.row,"hp").replace(/\s/g,""), alamat: g(r.row,"alamat"), jenisHewan: capitalize(g(r.row,"jenisHewan")), bayar: fixBayar(g(r.row,"bayar")), nominal: g(r.row,"nominal"), hewanId: "", cicilanLog: [], waLog: [] };
+      } else {
+        return { ...base, nama: g(r.row,"nama"), rt: g(r.row,"rt"), alamat: g(r.row,"alamat"), anggota: g(r.row,"anggota") || "1", sesi: g(r.row,"sesi"), sudahAmbil: false, ambilLog: { ditandaiOleh: null, ditandaiWaktu: null, dibatalkanOleh: null, dibatalkanWaktu: null, alasanBatal: null } };
+      }
+    });
+
+    if (tab === "hewan") setHewan(prev => [...prev, ...newItems]);
+    else if (tab === "mudhohi") setMudhohi(prev => [...prev, ...newItems]);
+    else setMustahiq(prev => [...prev, ...newItems]);
+
+    addLog(session, "DATA_IMPORTED", "IMPORT", tab.toUpperCase(), schema.label, { jumlah: newItems.length });
+    showToast(`🎉 ${newItems.length} data berhasil diimport!`);
+    setTimeout(() => switchTab(tab), 1200);
+  };
+
+  // ── Filtered rows ─────────────────────────────────────────────
+  const filtered = processed.filter(r => filter === "all" || r.status === filter);
+  const cntValid = processed.filter(r => r.status === "valid").length;
+  const cntInvalid = processed.filter(r => r.status === "invalid").length;
+  const cntDup = processed.filter(r => r.status === "duplicate").length;
+  const visibleFields = schema.fields.filter(f => colMap[f.key] >= 0);
+
+  const STATUS_ROW_COLOR = { valid: C.green, invalid: C.red, duplicate: C.orange };
+
+  return (
+    <div>
+      <Toast msg={toast.msg} type={toast.type} />
+      <SectionTitle emoji="📥" title="Import Data Excel" sub="Upload file .xlsx / .xls / .csv" />
+
+      {/* Tab jenis data */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {Object.entries(IMPORT_SCHEMAS).map(([key, s]) => (
+          <button key={key} onClick={() => switchTab(key)}
+            style={{ ...css.btn(tab === key ? C.greenDark : C.surface, tab === key ? C.greenLight : C.muted), border: `1px solid ${tab === key ? C.green : C.border}`, fontSize: 13 }}>
+            {s.emoji} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Download template */}
+      <div style={{ ...css.card, borderLeft: `3px solid ${C.blue}`, marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>📄 Download template Excel sesuai format yang dibutuhkan:</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {Object.entries(IMPORT_SCHEMAS).map(([key, s]) => (
+            <button key={key} onClick={() => downloadTemplate(key)}
+              style={{ ...css.btn(C.blue + "22", C.blue), border: `1px solid ${C.blue}44`, fontSize: 12, padding: "8px 14px" }}>
+              ⬇️ {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* STEP 1: Upload */}
+      {step === "upload" && (
+        <div style={css.card}>
+          <label style={css.label}>Upload File — {schema.label}</label>
+          <div
+            onClick={() => fileRef.current.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); parseFile(e.dataTransfer.files[0]); }}
+            style={{ border: `2px dashed ${dragging ? C.green : C.border}`, borderRadius: 12, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: dragging ? C.greenDark + "22" : "#0A0D09", transition: "all 0.2s" }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
+            <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>Klik atau drag file ke sini</div>
+            <div style={{ fontSize: 12, color: C.muted }}>.xlsx · .xls · .csv — Maks 5MB</div>
+          </div>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={e => parseFile(e.target.files[0])} />
+
+          {/* Format guide */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 11, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Format Kolom — {schema.label}</div>
+            {schema.fields.map(f => (
+              <div key={f.key} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 13 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: C.white }}>{f.label}</span>
+                  {f.required
+                    ? <span style={{ ...css.badge(C.green), fontSize: 10 }}>Wajib</span>
+                    : <span style={{ ...css.badge(C.muted), fontSize: 10 }}>Opsional</span>}
+                </div>
+                <span style={{ color: C.muted, fontSize: 12 }}>{f.hint}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: Mapping */}
+      {step === "mapping" && (
+        <div style={css.card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 700, color: C.white }}>🔗 Peta Kolom</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{fileName} · {rawRows.length} baris</div>
+            </div>
+            <Btn color={C.muted} onClick={() => setStep("upload")} style={{ fontSize: 12, padding: "6px 12px" }}>✕ Ganti File</Btn>
+          </div>
+          {schema.fields.map(f => (
+            <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 160 }}>
+                <div style={{ fontSize: 13, color: C.white, fontWeight: 600 }}>{f.label}</div>
+                <div style={{ fontSize: 10, color: f.required ? C.green : C.muted }}>{f.required ? "Wajib" : "Opsional"}</div>
+              </div>
+              <span style={{ color: C.muted, fontSize: 14 }}>→</span>
+              <select value={colMap[f.key] ?? -1} onChange={e => setColMap(prev => ({ ...prev, [f.key]: parseInt(e.target.value) }))}
+                style={{ ...css.select, flex: 1, minWidth: 160 }}>
+                <option value={-1}>— Tidak dipetakan —</option>
+                {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+              </select>
+            </div>
+          ))}
+          <Btn color={C.green} onClick={processPreview} style={{ width: "100%", marginTop: 4 }}>👁 Preview & Validasi Data →</Btn>
+        </div>
+      )}
+
+      {/* STEP 3: Preview */}
+      {step === "preview" && (
+        <div>
+          <div style={css.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontWeight: 700, color: C.white }}>Preview Data</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                  <span style={{ color: C.green }}>✅ Valid: {cntValid}</span>
+                  {" · "}
+                  <span style={{ color: C.red }}>❌ Error: {cntInvalid}</span>
+                  {" · "}
+                  <span style={{ color: C.orange }}>⚠️ Duplikat: {cntDup}</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Btn color={C.muted} onClick={() => setStep("mapping")} style={{ fontSize: 12, padding: "8px 12px" }}>← Kembali</Btn>
+                <Btn color={C.green} onClick={doImport} disabled={cntValid === 0} style={{ fontSize: 12, padding: "8px 14px" }}>
+                  ✅ Import {cntValid} Data Valid
+                </Btn>
+              </div>
+            </div>
+
+            {/* Filter */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+              {[
+                { id: "all", label: `Semua (${processed.length})`, color: C.green },
+                { id: "valid", label: `✅ Valid (${cntValid})`, color: C.green },
+                { id: "invalid", label: `❌ Error (${cntInvalid})`, color: C.red },
+                { id: "duplicate", label: `⚠️ Duplikat (${cntDup})`, color: C.orange },
+              ].map(f => (
+                <button key={f.id} onClick={() => setFilter(f.id)}
+                  style={{ ...css.btn(filter === f.id ? f.color + "22" : C.surface, filter === f.id ? f.color : C.muted), border: `1px solid ${filter === f.id ? f.color + "44" : C.border}`, fontSize: 12, padding: "6px 12px" }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tabel */}
+            <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${C.border}` }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>#</th>
+                    {visibleFields.map(f => (
+                      <th key={f.key} style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>{f.label}</th>
+                    ))}
+                    <th style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}` }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.slice(0, 200).map(r => (
+                    <tr key={r.idx} style={{ borderLeft: `3px solid ${STATUS_ROW_COLOR[r.status]}` }}>
+                      <td style={{ padding: "8px 12px", color: C.muted, fontSize: 11, borderBottom: `1px solid ${C.border}22` }}>{r.idx + 1}</td>
+                      {visibleFields.map(f => (
+                        <td key={f.key} style={{ padding: "8px 12px", color: C.text, borderBottom: `1px solid ${C.border}22`, whiteSpace: "nowrap" }}>
+                          {getVal(r.row, f.key, colMap) || <span style={{ color: C.muted }}>—</span>}
+                        </td>
+                      ))}
+                      <td style={{ padding: "8px 12px", borderBottom: `1px solid ${C.border}22` }}>
+                        {r.status === "valid" && <span style={{ ...css.badge(C.green), fontSize: 11 }}>✅ Valid</span>}
+                        {r.status === "duplicate" && <span style={{ ...css.badge(C.orange), fontSize: 11 }} title={r.dup}>⚠️ Duplikat</span>}
+                        {r.status === "invalid" && <span style={{ ...css.badge(C.red), fontSize: 11 }} title={r.errors.join(", ")}>❌ {r.errors[0]}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filtered.length > 200 && (
+                <div style={{ textAlign: "center", color: C.muted, fontSize: 12, padding: "10px" }}>Menampilkan 200 dari {filtered.length} baris</div>
+              )}
+              {filtered.length === 0 && (
+                <div style={{ textAlign: "center", color: C.muted, fontSize: 13, padding: "30px" }}>Tidak ada data untuk filter ini.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════
 // ROOT APP
