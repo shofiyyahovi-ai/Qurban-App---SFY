@@ -1819,6 +1819,23 @@ const IMPORT_SCHEMAS = {
       ["Pak Umar","RT 05","Jl. Melati 12","3","Sesi 2 - Siang"],
     ],
   },
+  nomorHewan: {
+    label: "Daftar Nomor Hewan",
+    emoji: "📋",
+    description: "Format dari e-kwitansi / daftar nomor hewan qurban. Data diimport sebagai Shohibul Qurban dengan nomor hewan.",
+    fields: [
+      { key: "no",         label: "No. Urut",           required: false, hint: "Nomor urut baris (opsional)" },
+      { key: "nama",       label: "Nama Shohibul Qurban", required: true,  hint: "Nama dari e-kwitansi" },
+      { key: "nomorHewan", label: "Nomor Hewan",         required: true,  hint: "Cth: 001, 002, ..." },
+      { key: "catatan",    label: "Catatan",             required: false, hint: "Perbaikan nama, ambil bagian, dll" },
+    ],
+    template: [
+      ["No","Nama Shohibul Qurban (Domba/Kambing)","Nomor Hewan","Catatan / Perbaikan Nama"],
+      ["1","Poppy Pudjiastuti binti Moestadhi","001","Perbaikan Nama, 18 April 2026"],
+      ["2","Al Nazaha Zaahidah dan Keiko Margaret","002","-"],
+      ["3","Kion Ibrahim Teja Arkatama","003","-"],
+    ],
+  },
 };
 
 const IMPORT_SYNONYMS = {
@@ -1836,6 +1853,9 @@ const IMPORT_SYNONYMS = {
   rt:         ["rt","rt/rw","rtrw","rt / rw"],
   anggota:    ["anggota","jumlah anggota kk","anggota kk","jumlah anggota","kk","jumlah kk"],
   sesi:       ["sesi","sesi pengambilan","waktu ambil","jadwal"],
+  no:         ["no","no.","nomor","no urut","no. urut","number"],
+  nomorHewan: ["nomor hewan","no hewan","no. hewan","hewan no","animal no","kode hewan","id hewan","nomor","no"],
+  catatan:    ["catatan","catatan / perbaikan nama","keterangan","notes","note","info","perbaikan"],
 };
 
 function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session}) {
@@ -1940,6 +1960,9 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
       if (!g("nominal") || isNaN(Number(g("nominal"))) || Number(g("nominal")) <= 0) errors.push("Nominal tidak valid");
     } else if (tab === "mustahiq") {
       if (!g("nama")) errors.push("Nama wajib");
+    } else if (tab === "nomorHewan") {
+      if (!g("nama")) errors.push("Nama shohibul qurban wajib");
+      if (!g("nomorHewan")) errors.push("Nomor hewan wajib");
     }
     return errors;
   };
@@ -1952,6 +1975,13 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
     }
     if (tab === "hewan") {
       return hewan.some(h => h.nama.toLowerCase() === g("nama").toLowerCase()) ? "Nama hewan sudah ada" : null;
+    }
+    if (tab === "nomorHewan") {
+      const nomorHewan = g("nomorHewan").trim().replace(/^0+/, "").padStart(3, "0");
+      const namaLower = g("nama").toLowerCase().trim();
+      if (mudhohi.some(m => m.nomorHewan === nomorHewan)) return "Nomor hewan sudah terdaftar";
+      if (mudhohi.some(m => m.nama.toLowerCase().trim() === namaLower)) return "Nama sudah terdaftar";
+      return null;
     }
     return null;
   };
@@ -1992,6 +2022,26 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
         return { ...base, jenis, nama: g(r.row,"nama"), berat: g(r.row,"berat"), asal: g(r.row,"asal"), harga: g(r.row,"harga"), kapasitas: g(r.row,"kapasitas") || (jenis === "Sapi" ? "7" : "1"), status: "Menunggu", statusHistory: [] };
       } else if (tab === "mudhohi") {
         return { ...base, nama: g(r.row,"nama"), hp: g(r.row,"hp").replace(/\s/g,""), alamat: g(r.row,"alamat"), jenisHewan: capitalize(g(r.row,"jenisHewan")), bayar: fixBayar(g(r.row,"bayar")), nominal: g(r.row,"nominal"), hewanId: "", cicilanLog: [], waLog: [] };
+      } else if (tab === "nomorHewan") {
+        const nomorRaw = g(r.row,"nomorHewan").trim();
+        // Normalize: strip leading zeros then re-pad to 3 digits
+        const nomorHewan = nomorRaw.replace(/^0+/, "").padStart(3, "0") || nomorRaw;
+        const catatanRaw = g(r.row,"catatan").trim();
+        const catatan = (catatanRaw === "-" || catatanRaw === "") ? "" : catatanRaw;
+        return {
+          ...base,
+          nama: g(r.row,"nama"),
+          hp: "",
+          alamat: "",
+          jenisHewan: "Domba",
+          bayar: "Lunas",
+          nominal: "0",
+          hewanId: "",
+          nomorHewan,
+          catatan,
+          cicilanLog: [],
+          waLog: [],
+        };
       } else {
         return { ...base, nama: g(r.row,"nama"), rt: g(r.row,"rt"), alamat: g(r.row,"alamat"), anggota: g(r.row,"anggota") || "1", sesi: g(r.row,"sesi"), sudahAmbil: false, ambilLog: { ditandaiOleh: null, ditandaiWaktu: null, dibatalkanOleh: null, dibatalkanWaktu: null, alasanBatal: null } };
       }
@@ -1999,6 +2049,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
 
     if (tab === "hewan") setHewan(prev => [...prev, ...newItems]);
     else if (tab === "mudhohi") setMudhohi(prev => [...prev, ...newItems]);
+    else if (tab === "nomorHewan") setMudhohi(prev => [...prev, ...newItems]);
     else setMustahiq(prev => [...prev, ...newItems]);
     showToast(`🎉 ${newItems.length} data berhasil diimport!`);
     setTimeout(() => switchTab(tab), 1200);
@@ -2044,6 +2095,11 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
       {/* STEP 1: Upload */}
       {step === "upload" && (
         <div style={css.card}>
+          {tab === "nomorHewan" && (
+            <div style={{ background: C.blue + "18", border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.blue }}>
+              ℹ️ <strong>Format Daftar Nomor Hewan</strong> — cocok untuk file Excel dari e-kwitansi qurban (seperti Masjid Mutiara Sunnah). Kolom yang dikenali: <em>No, Nama Shohibul Qurban, Nomor Hewan, Catatan</em>. Data akan masuk sebagai <strong>Shohibul Qurban</strong> dengan field nomor hewan.
+            </div>
+          )}
           <label style={css.label}>Upload File — {schema.label}</label>
           <div
             onClick={() => fileRef.current.click()}
