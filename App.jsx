@@ -1099,7 +1099,8 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, session}) {
       setMudhohi(prev => [...prev, newM]);
       showToast("Data disimpan!");
   };
-
+  }
+  
   // BR-MUDHOHI-01: cek duplikat HP (warning)
   const checkDupHP = (hp) => {
     if (!hp || !validateHP(hp)) { setDupWarning(""); return; }
