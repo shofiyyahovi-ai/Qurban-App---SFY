@@ -767,13 +767,13 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
       {/* ── Alert belum lunas ── */}
       {belumLunas > 0 && (
         <div onClick={() => setPage("mudhohi")} style={{
           background: C.red + "18", border: `1px solid ${C.red}44`,
-          borderLeft: `4px solid ${C.red}`, borderRadius: 5,
+          borderLeft: `4px solid ${C.red}`, borderRadius: 4,
           padding: "12px 16px", cursor: "pointer",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
@@ -783,23 +783,23 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
       )}
 
       {/* ══ SEKSI 1: HEWAN QURBAN ══ */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: "hidden" }}>
         {/* Header seksi */}
         <div style={{
-          background: `linear-gradient(135deg, #1B4332 0%, #0A1F14 100%)`,
-          borderBottom: `1px solid ${GOLD_BORDER}`,
+          background: C.greenDark,
+          borderBottom: `1px solid ${C.border}`,
           padding: "14px 18px",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: GOLD, letterSpacing: 0.3 }}>🐾 Hewan Qurban</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.gold, fontFamily: "'Amiri', serif", letterSpacing: 0.3 }}>🐾 Hewan Qurban</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Total terdaftar</div>
           </div>
           <div style={{
-            background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`,
-            borderRadius: 5, padding: "6px 16px", textAlign: "center",
+            background: C.gold + "22", border: `1px solid ${C.gold}55`,
+            borderRadius: 4, padding: "6px 16px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 28, fontWeight: 900, color: GOLD, lineHeight: 1 }}>{totalHewan}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: C.gold, lineHeight: 1 }}>{totalHewan}</div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>ekor</div>
           </div>
         </div>
@@ -813,7 +813,7 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
               transition: "background 0.15s",
             }}>
               <div style={{ fontSize: 20, marginBottom: 4 }}>{j.emoji}</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: j.color, lineHeight: 1 }}>{j.value}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: j.color, lineHeight: 1 }}>{j.value}</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{j.label}</div>
             </div>
           ))}
@@ -825,46 +825,47 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
             {statusData.map(s => (
               <div key={s.label} style={{
-                background: s.color + "11", border: `1px solid ${s.color}33`,
+                background: C.surfaceAlt, border: `1px solid ${C.border}`,
+                borderLeft: `3px solid ${s.color}`,
                 borderRadius: 4, padding: "10px 14px",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
               }}>
-                <span style={{ fontSize: 13, color: C.muted }}>{s.label}</span>
-                <span style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</span>
+                <span style={{ fontSize: 13, color: C.text }}>{s.label}</span>
+                <span style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</span>
               </div>
             ))}
           </div>
           {/* Progress bar */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, color: C.muted }}>Selesai disembelih</span>
-            <span style={{ fontSize: 14, fontWeight: 900, color: C.green }}>{pct}%</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{pct}%</span>
           </div>
-          <div style={{ height: 10, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, #2E7D32, #4CAF50)`, borderRadius: 99, transition: "width 0.4s" }} />
+          <div style={{ height: 6, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: C.green, borderRadius: 2, transition: "width 0.4s" }} />
           </div>
         </div>
       </div>
 
       {/* ══ SEKSI 2: PENERIMA DAGING ══ */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, overflow: "hidden" }}
         onClick={() => setPage("mustahiq")} >
         {/* Header */}
         <div style={{
-          background: `linear-gradient(135deg, #1A2B1A 0%, #0C1A0C 100%)`,
+          background: C.greenDark,
           borderBottom: `1px solid ${C.border}`,
           padding: "14px 18px",
           display: "flex", justifyContent: "space-between", alignItems: "center",
           cursor: "pointer",
         }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: C.greenLight, letterSpacing: 0.3 }}>🤲 Penerima Daging</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.green, fontFamily: "'Amiri', serif", letterSpacing: 0.3 }}>🤲 Penerima Daging</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Total terdaftar</div>
           </div>
           <div style={{
-            background: C.green + "22", border: `1px solid ${C.green}44`,
-            borderRadius: 5, padding: "6px 16px", textAlign: "center",
+            background: C.green + "22", border: `1px solid ${C.green}55`,
+            borderRadius: 4, padding: "6px 16px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 28, fontWeight: 900, color: C.greenLight, lineHeight: 1 }}>{mustahiq.length}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: C.green, lineHeight: 1 }}>{mustahiq.length}</div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>orang</div>
           </div>
         </div>
@@ -872,11 +873,11 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
         {/* Sudah & Belum ambil */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ padding: "16px", textAlign: "center", borderRight: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: C.green, lineHeight: 1 }}>{sudahAmbil}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: C.green, lineHeight: 1 }}>{sudahAmbil}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>✅ Sudah Ambil</div>
           </div>
           <div style={{ padding: "16px", textAlign: "center" }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: C.red, lineHeight: 1 }}>{belumAmbil}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: C.red, lineHeight: 1 }}>{belumAmbil}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>⏳ Belum Ambil</div>
           </div>
         </div>
@@ -885,29 +886,29 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
         <div style={{ padding: "14px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, color: C.muted }}>Distribusi daging</span>
-            <span style={{ fontSize: 14, fontWeight: 900, color: C.green }}>{pctAmbil}%</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{pctAmbil}%</span>
           </div>
-          <div style={{ height: 10, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pctAmbil}%`, background: `linear-gradient(90deg, #1B4332, #4CAF50)`, borderRadius: 99, transition: "width 0.4s" }} />
+          <div style={{ height: 6, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pctAmbil}%`, background: C.green, borderRadius: 2, transition: "width 0.4s" }} />
           </div>
         </div>
       </div>
 
-      {/* ══ SEKSI 3: PEMBAYARAN (lebih kecil) ══ */}
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 18px" }}
+      {/* ══ SEKSI 3: PEMBAYARAN ══ */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "14px 18px" }}
         onClick={() => setPage("mudhohi")} >
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>💳 Pembayaran Shohibul Qurban</div>
+        <div style={{ fontWeight: 600, fontSize: 11, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>💳 Pembayaran Shohibul Qurban</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <div style={{ background: C.green + "11", border: `1px solid ${C.green}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.green }}>{lunas}</div>
+          <div style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.green }}>{lunas}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Lunas</div>
           </div>
-          <div style={{ background: C.red + "11", border: `1px solid ${C.red}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.red }}>{belumLunas}</div>
+          <div style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.red}`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.red }}>{belumLunas}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Belum Lunas</div>
           </div>
-          <div style={{ background: C.orange + "11", border: `1px solid ${C.orange}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: C.orange }}>{mudhohi.filter(m => m.bayar === "Cicilan").length}</div>
+          <div style={{ background: C.surfaceAlt, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.orange }}>{mudhohi.filter(m => m.bayar === "Cicilan").length}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Cicilan</div>
           </div>
         </div>
