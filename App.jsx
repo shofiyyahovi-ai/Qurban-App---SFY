@@ -126,83 +126,6 @@ const KAPASITAS_DEFAULT = { Sapi: 7, Kambing: 1, Domba: 1 };
 // so existing seed/storage data keeps working, and `verifyPassword` reports
 // them via `needsRehash` so callers can transparently migrate on next login.
 
-const _hex = (buf) =>
-  [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-const _hexToBytes = (hex) =>
-  new Uint8Array(hex.match(/.{1,2}/g)?.map((h) => parseInt(h, 16)) || []);
-
-// Legacy (insecure, kept only for seed init + backward verification).
-function legacyHashPassword(pass) {
-  let h = 0;
-  for (let i = 0; i < pass.length; i++) {
-    h = (Math.imul(31, h) + pass.charCodeAt(i)) | 0;
-  }
-  return (
-    "H$" +
-    Math.abs(h).toString(36) +
-    "$" +
-    btoa(pass.split("").reverse().join("")).slice(0, 8)
-  );
-}
-
-const PBKDF2_ITER = 100000;
-
-async function hashPassword(pass) {
-  if (typeof pass !== "string") pass = String(pass ?? "");
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(pass),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITER, hash: "SHA-256" },
-    key,
-    256
-  );
-  return `P2$${PBKDF2_ITER}$${_hex(salt)}$${_hex(bits)}`;
-}
-
-// Constant-time string compare (length-safe).
-function _ctEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string") return false;
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-async function verifyPassword(pass, stored) {
-  if (typeof stored !== "string" || !stored) return { ok: false, needsRehash: false };
-  if (stored.startsWith("P2$")) {
-    const parts = stored.split("$");
-    if (parts.length !== 4) return { ok: false, needsRehash: false };
-    const iterations = Number(parts[1]) || PBKDF2_ITER;
-    const salt = _hexToBytes(parts[2]);
-    const expected = parts[3];
-    try {
-      const key = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(pass),
-        "PBKDF2",
-        false,
-        ["deriveBits"]
-      );
-      const bits = await crypto.subtle.deriveBits(
-        { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-        key,
-        256
-      );
-      return { ok: _ctEqual(_hex(bits), expected), needsRehash: iterations < PBKDF2_ITER };
-    } catch {
-      return { ok: false, needsRehash: false };
-    }
-  }
-  // Legacy hash — accept once, then mark for re-hash.
-  return { ok: legacyHashPassword(pass) === stored, needsRehash: true };
-}
 
 // ── Generate UUID ─────────────────────────────────────────────
 function uuid() {
@@ -239,93 +162,10 @@ function saveStorage(key, value) {
     if (typeof console !== "undefined") console.warn("saveStorage failed for", key, e);
   }
 }
-
-// ── sessionStorage / localStorage session ────────────────────
-function loadSession() {
-  try {
-    const raw = sessionStorage.getItem("qurban_session") || localStorage.getItem("qurban_session_remember");
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || typeof s !== "object" || !s.panitiaId) return null;
-    if (s.expiredAt && new Date(s.expiredAt) < new Date()) {
-      sessionStorage.removeItem("qurban_session");
-      localStorage.removeItem("qurban_session_remember");
-      return null;
-    }
-    return s;
-  } catch { return null; }
-}
-function saveSession(session, remember) {
-  if (remember) {
-    const exp = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    localStorage.setItem("qurban_session_remember", JSON.stringify({ ...session, expiredAt: exp }));
-  } else {
-    sessionStorage.setItem("qurban_session", JSON.stringify(session));
-  }
-}
-function clearSession() {
-  sessionStorage.removeItem("qurban_session");
-  localStorage.removeItem("qurban_session_remember");
-}
-
-// ── Fonnte WA sender ──────────────────────────────────────────
-async function sendWA(token, target, message) {
-  if (!token) return { status: false, reason: "Token belum diset" };
-  if (!target) return { status: false, reason: "Nomor tujuan kosong" };
-  try {
-    const res = await fetch("https://api.fonnte.com/send", {
-      method: "POST",
-      headers: { Authorization: token },
-      body: new URLSearchParams({ target, message: message || "", countryCode: "62" }),
-    });
-    try { return await res.json(); }
-    catch { return { status: res.ok, reason: res.ok ? undefined : `HTTP ${res.status}` }; }
-  } catch (e) { return { status: false, reason: e?.message || "Gagal kirim" }; }
-}
-async function sendWAWithImage(token, target, message, imageBase64) {
-  if (!token) return { status: false, reason: "Token belum diset" };
-  if (!target) return { status: false, reason: "Nomor tujuan kosong" };
-  try {
-    // Use FormData (multipart) — URLSearchParams is unreliable for the
-    // multi-MB base64 payloads produced by FileReader.
-    const form = new FormData();
-    form.append("target", target);
-    form.append("message", message || "");
-    form.append("countryCode", "62");
-    if (imageBase64) form.append("file", imageBase64);
-    const res = await fetch("https://api.fonnte.com/send", {
-      method: "POST",
-      headers: { Authorization: token },
-      body: form,
-    });
-    try { return await res.json(); }
-    catch { return { status: res.ok, reason: res.ok ? undefined : `HTTP ${res.status}` }; }
-  } catch (e) { return { status: false, reason: e?.message || "Gagal kirim" }; }
-}
-
-
-
 // ══════════════════════════════════════════════════════════════
 // INITIAL DATA — Admin account only. No dummy data. (EC-13)
 // ══════════════════════════════════════════════════════════════
 const SEED_TIMESTAMP = new Date().toISOString();
-const SEED_PANITIA = [
-  {
-    id: "USR_admin",
-    nama: "Admin",
-    username: "admin",
-    passwordHash: legacyHashPassword("panitiaqurban2026"),
-    role: "admin",
-    status: "aktif",
-    mustChangePassword: true,
-    loginAttempts: 0,
-    lockedUntil: null,
-    createdAt: SEED_TIMESTAMP,
-    createdBy: "SYSTEM",
-    updatedAt: SEED_TIMESTAMP,
-    updatedBy: "SYSTEM",
-  },
-];
 const SEED_HEWAN = [
   {
     id: "S001",
@@ -801,192 +641,6 @@ function usePermission() {
 function isHewanTerkunci() { return false; }
 
 // ══════════════════════════════════════════════════════════════
-// LOGIN PAGE
-// ══════════════════════════════════════════════════════════════
-// BR-AUTH-01 ~ BR-AUTH-08
-function LoginPage({ onLogin, panitiaList, setPanitiaList}) {
-  const [username, setUsername] = useState("");
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [remember, setRemember] = useState(false);
-  const [lockMsg, setLockMsg] = useState("");
-
-  const [busy, setBusy] = useState(false);
-
-  const handle = async () => {
-    if (busy) return;
-    if (!username.trim() || !pass.trim()) { setErr("Username dan password wajib diisi."); return; }
-
-    const user = panitiaList.find(u => u.username === username.toLowerCase().trim());
-    if (!user) { setErr("Username atau password salah."); return; }
-
-    // BR-AUTH-03: akun nonaktif
-    if (user.status === "nonaktif") {
-      setErr("Akun Anda telah dinonaktifkan. Hubungi admin.");
-      return;
-    }
-
-    // BR-AUTH-07: cek lockout
-    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-      const sisa = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
-      setLockMsg(`Akun terkunci. Coba lagi dalam ${sisa} menit.`);
-      return;
-    }
-
-    setBusy(true);
-    let result;
-    try {
-      result = await verifyPassword(pass, user.passwordHash);
-    } catch {
-      result = { ok: false, needsRehash: false };
-    }
-
-    if (!result.ok) {
-      const attempts = (user.loginAttempts || 0) + 1;
-      const locked = attempts >= 5;
-      const lockedUntil = locked ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
-      setPanitiaList(prev => prev.map(u => u.id === user.id ? { ...u, loginAttempts: attempts, lockedUntil } : u));
-      setErr("Username atau password salah.");
-      if (locked) setLockMsg("Akun dikunci 15 menit karena 5x gagal login.");
-      setBusy(false);
-      return;
-    }
-
-    // SECURITY: migrate legacy/weak hash to PBKDF2 transparently on success.
-    let migratedHash = null;
-    if (result.needsRehash) {
-      try { migratedHash = await hashPassword(pass); } catch { /* keep legacy */ }
-    }
-
-    setPanitiaList(prev => prev.map(u => u.id === user.id
-      ? { ...u, loginAttempts: 0, lockedUntil: null, ...(migratedHash ? { passwordHash: migratedHash } : {}) }
-      : u));
-
-    const session = {
-      panitiaId: user.id,
-      panitiaName: user.nama,
-      role: user.role,
-      loginAt: now(),
-      token: uuid(),
-      mustChangePassword: user.mustChangePassword || false,
-      remember,
-    };
-    saveSession(session, remember);
-    setBusy(false);
-    onLogin(session);
-  };
-
-  const handleKey = (e) => { if (e.key === "Enter") handle(); };
-
-  return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 52, marginBottom: 8 }}>🕌</div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: C.white, margin: 0, letterSpacing: "-0.5px" }}>Qurban App</h1>
-          <p style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>Sistem Manajemen Qurban Digital · {new Date().getFullYear()} M</p>
-        </div>
-        <div style={{ ...css.card, padding: 28 }}>
-          <Input label="Username" value={username} onChange={v => { setUsername(v); setErr(""); setLockMsg(""); }} placeholder="Masukkan username" onKeyDown={handleKey} />
-          <div style={{ marginBottom: 14 }}>
-            <label style={css.label}>Password</label>
-            <div style={{ position: "relative" }}>
-              <input type={showPass ? "text" : "password"} value={pass} onChange={e => { setPass(e.target.value); setErr(""); }} placeholder="••••••••" style={{ ...css.input, paddingRight: 48 }} onKeyDown={handleKey} />
-              <button onClick={() => setShowPass(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>
-                {showPass ? "🙈" : "👁"}
-              </button>
-            </div>
-          </div>
-
-          {/* BR-AUTH-06: Ingat saya */}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, cursor: "pointer", fontSize: 13, color: C.muted }}>
-            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
-            Ingat saya (7 hari)
-          </label>
-
-          {(err || lockMsg) && <div style={{ color: C.red, fontSize: 13, marginBottom: 12 }}>⚠️ {lockMsg || err}</div>}
-          <Btn color={C.green} onClick={handle} disabled={busy} style={{ width: "100%", padding: "11px 0", fontSize: 14 }}>{busy ? "⏳ Memverifikasi..." : "Masuk →"}</Btn>
-
-          <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: C.muted }}>
-            Hubungi admin jika lupa username atau password.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
-// GANTI PASSWORD (BR-AUTH-08)
-// ══════════════════════════════════════════════════════════════
-function GantiPasswordModal({ session, setPanitiaList, onDone }) {
-  const [pass1, setPass1] = useState("");
-  const [pass2, setPass2] = useState("");
-  const [err, setErr] = useState("");
-  const [showPass1, setShowPass1] = useState(false);
-  const [showPass2, setShowPass2] = useState(false);
-
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    if (busy) return;
-    if (pass1.length < 6) { setErr("Password minimal 6 karakter."); return; }
-    if (pass1 !== pass2) { setErr("Password tidak cocok."); return; }
-    setBusy(true);
-    let newHash;
-    try {
-      newHash = await hashPassword(pass1);
-    } catch {
-      setBusy(false);
-      setErr("Gagal mengamankan password. Coba lagi.");
-      return;
-    }
-    setPanitiaList(prev => prev.map(u =>
-      u.id === session.panitiaId
-        ? { ...u, passwordHash: newHash, mustChangePassword: false, loginAttempts: 0, lockedUntil: null, updatedAt: now(), updatedBy: session.panitiaId }
-        : u
-    ));
-    setBusy(false);
-    onDone();
-  };
-
-  return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ ...css.card, padding: 28 }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 36 }}>🔑</div>
-            <h2 style={{ color: C.white, margin: "8px 0 4px" }}>Ganti Password</h2>
-            <p style={{ color: C.muted, fontSize: 13 }}>Wajib ganti password sebelum melanjutkan.</p>
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={css.label}>Password Baru</label>
-            <div style={{ position: "relative" }}>
-              <input type={showPass1 ? "text" : "password"} value={pass1} onChange={e => setPass1(e.target.value)} placeholder="••••••••" style={{ ...css.input, paddingRight: 48 }} />
-              <button onClick={() => setShowPass1(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, minHeight: 36, minWidth: 36 }}>
-                {showPass1 ? "🙈" : "👁"}
-              </button>
-            </div>
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <label style={css.label}>Konfirmasi Password</label>
-            <div style={{ position: "relative" }}>
-              <input type={showPass2 ? "text" : "password"} value={pass2} onChange={e => setPass2(e.target.value)} placeholder="••••••••" style={{ ...css.input, paddingRight: 48, borderColor: err ? C.red : C.border }} />
-              <button onClick={() => setShowPass2(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, minHeight: 36, minWidth: 36 }}>
-                {showPass2 ? "🙈" : "👁"}
-              </button>
-            </div>
-            {err && <div style={{ fontSize: 11, color: C.red, marginTop: 3 }}>⚠ {err}</div>}
-          </div>
-          <Btn color={C.green} onClick={save} disabled={busy} style={{ width: "100%" }}>{busy ? "⏳ Menyimpan..." : "Simpan Password"}</Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════════
 function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
@@ -1395,115 +1049,14 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// NOTIF SEMBELIH MODAL
-// ══════════════════════════════════════════════════════════════
-function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMudhohi, onClose }) {
-  const [foto, setFoto] = useState(null);
-  const [fotoPreview, setFotoPreview] = useState(null);
-  const [pesanCustom, setPesanCustom] = useState("");
-  const [sending, setSending] = useState(false);
-  const [result, setResult] = useState(null);
-  const fileRef = useRef();
-  const lastSentRef = useRef(null);
-
-  const statusHewan = hewanObj?.status || "Menunggu";
-  const sudahSembelih = ["Disembelih", "Dikuliti", "Selesai"].includes(statusHewan);
-
-  const defaultPesan = sudahSembelih
-    ? `Assalamu'alaikum ${m.nama},\n\nAlhamdulillah, hewan qurban Anda (${hewanObj?.nama || m.jenisHewan}) telah ${statusHewan === "Selesai" ? "selesai diproses" : "disembelih"}. 🐾\n\nInsyaAllah daging akan segera didistribusikan.\n\nBarakallahu fiikum. Panitia Qurban`
-    : `Assalamu'alaikum ${m.nama},\n\nHewan qurban Anda masih dalam antrean penyembelihan.\n\nBarakallahu fiikum. Panitia Qurban`;
-
-  const pesan = pesanCustom || defaultPesan;
-
-  const handleFoto = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (!file.type || !file.type.startsWith("image/")) {
-      setResult({ ok: false, msg: "File harus berupa gambar." });
-      e.target.value = "";
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setResult({ ok: false, msg: "Ukuran foto maks 2MB." });
-      e.target.value = "";
-      return;
-    }
-    // Keep the File for upload (Fonnte expects binary in `file` field),
-    // and build a separate base64 data URL only for the preview <img>.
-    setFoto(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setFotoPreview(ev.target.result);
-    reader.onerror = () => {
-      setResult({ ok: false, msg: "Gagal membaca file foto. Coba lagi." });
-      setFoto(null);
-      setFotoPreview(null);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const send = async () => {
-    if (!fonnteToken) { setResult({ ok: false, msg: "Token Fonnte belum diset di Pengaturan." }); return; }
-    // BR-WA-03: anti-spam 5 menit
-    if (lastSentRef.current && Date.now() - lastSentRef.current < 5 * 60 * 1000) {
-      if (!window.confirm("WA ke nomor ini baru dikirim < 5 menit lalu. Kirim ulang?")) return;
-    }
-    setSending(true); setResult(null);
-    const res = foto ? await sendWAWithImage(fonnteToken, m.hp, pesan, foto) : await sendWA(fonnteToken, m.hp, pesan);
-    setSending(false);
-    const ok = !!res.status;
-    if (ok) { lastSentRef.current = Date.now(); setResult({ ok: true, msg: "Notifikasi WA berhasil dikirim! ✅" }); }
-    else setResult({ ok: false, msg: `Gagal kirim: ${res.reason || "error"}` });
-    // BR-WA-02: catat log WA
-    setMudhohi(prev => prev.map(x => x.id === m.id ? { ...x, waLog: [...(x.waLog || []), { waktu: now(), dikirimOleh: session.panitiaId, status: ok ? "ok" : "gagal", reason: res.reason }] } : x));
-  };
-
-  return (
-    <Modal onClose={onClose} title="📲 Kirim Notif Penyembelihan">
-      <div style={{ padding: "10px 14px", background: C.inputBg, borderRadius: 5, border: `1px solid ${STATUS_COLOR[statusHewan] || C.border}44`, marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: C.muted }}>Status Hewan</div>
-        <div style={{ fontWeight: 700, color: STATUS_COLOR[statusHewan] || C.text }}>{statusHewan}</div>
-        <div style={{ fontSize: 12, color: C.muted }}>{hewanObj?.nama || "-"}</div>
-      </div>
-      <div style={{ marginBottom: 14, padding: "10px 14px", background: C.inputBg, borderRadius: 5, border: `1px solid ${C.border}` }}>
-        <div style={{ fontSize: 11, color: C.muted }}>DIKIRIM KE</div>
-        <div style={{ fontWeight: 700, color: C.white }}>{m.nama}</div>
-        <div style={{ fontSize: 12, color: C.muted }}>📱 {m.hp}</div>
-      </div>
-      <div style={{ marginBottom: 14 }}>
-        <label style={css.label}>Foto (opsional, maks 2MB)</label>
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleFoto} style={{ display: "none" }} />
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => fileRef.current.click()} style={{ ...css.btn(C.inputBg, C.muted), border: `1px dashed ${C.border}`, fontSize: 12, padding: "9px 14px", flex: 1 }}>📷 {foto ? "Ganti Foto" : "Pilih Foto"}</button>
-          {foto && <button onClick={() => { setFoto(null); setFotoPreview(null); }} style={{ ...css.btn(C.red + "22", C.red), border: `1px solid ${C.red}44`, fontSize: 12, padding: "9px 12px" }}>✕</button>}
-        </div>
-        {fotoPreview && <img src={fotoPreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 4, marginTop: 8 }} />}
-      </div>
-      <div style={{ marginBottom: 14 }}>
-        <label style={css.label}>Pesan WA</label>
-        <textarea value={pesanCustom || defaultPesan} onChange={e => setPesanCustom(e.target.value)} rows={5} style={{ ...css.input, resize: "vertical", lineHeight: 1.6, fontSize: 13 }} />
-        {pesanCustom && <button onClick={() => setPesanCustom("")} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, marginTop: 2 }}>↩ Reset ke default</button>}
-      </div>
-      {result && <div style={{ marginBottom: 14, padding: "10px 13px", background: result.ok ? C.green + "18" : C.red + "18", border: `1px solid ${result.ok ? C.green : C.red}`, borderRadius: 4, fontSize: 13, color: result.ok ? C.green : C.red }}>{result.msg}</div>}
-      <div style={{ display: "flex", gap: 8 }}>
-        <Btn color={C.green} onClick={send} disabled={sending} style={{ flex: 1 }}>{sending ? "⏳ Mengirim..." : "📲 Kirim WA"}</Btn>
-        <Btn color={C.muted} onClick={onClose} style={{ flex: 1 }}>Tutup</Btn>
-      </div>
-    </Modal>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
 // MUDHOHI PAGE
 // ══════════════════════════════════════════════════════════════
-function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session}) {
+function MudhohiPage({ mudhohi, setMudhohi, hewan, session}) {
   const perm = usePermission(session);
   const [modal, setModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
-  const [notifTarget, setNotifTarget] = useState(null);
   const [form, setForm] = useState({ nama: "", hp: "", alamat: "", jenisHewan: "Sapi", hewanId: hewan.find(h => h.jenis === "Sapi")?.id || "", bayar: "Lunas", nominal: "" });
   const [errors, setErrors] = useState({});
-  const [waPreview, setWaPreview] = useState(false);
-  const [sending, setSending] = useState(false);
   const [toast, setToast] = useState({ msg: "", type: "ok" });
   const [search, setSearch] = useState("");
   const [filterBayar, setFilterBayar] = useState("Semua");
@@ -1532,9 +1085,6 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session}) {
 
   const hewanObj = hewan.find(h => h.id === form.hewanId);
 
-  const buildWAMsg = () =>
-    `Assalamu'alaikum ${form.nama},\n\nPendaftaran qurban Anda telah berhasil! ${JENIS_EMOJI[form.jenisHewan] || "🐾"}\nJenis: ${form.jenisHewan} (${hewanObj?.nama || "-"})\nStatus Bayar: ${form.bayar}\nNominal: Rp ${Number(form.nominal).toLocaleString("id")}\n\nBarakallahu fiikum. Panitia Qurban`;
-
   const save = async (skipWA = false) => {
     if (!validate()) return;
     const hewanObj2 = hewan.find(h => h.id === form.hewanId);
@@ -1547,22 +1097,7 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session}) {
     if (modal === "add") {
       const newM = { ...form, id: "M" + uuid(), createdBy: session.panitiaId, createdAt: now(), updatedBy: session.panitiaId, updatedAt: now(), cicilanLog: [], waLog: [] };
       setMudhohi(prev => [...prev, newM]);
-      if (fonnteToken && !skipWA) {
-        setSending(true);
-        const res = await sendWA(fonnteToken, form.hp, buildWAMsg());
-        setSending(false);
-        setMudhohi(prev => prev.map(x => x.id === newM.id ? { ...x, waLog: [{ waktu: now(), dikirimOleh: session.panitiaId, status: res.status ? "ok" : "gagal", reason: res.reason }] } : x));
-        showToast("Data disimpan & notif WA terkirim!");
-      } else {
-        showToast("Data disimpan!");
-      }
-    } else {
-      const existing = mudhohi.find(m => m.id === form.id);
-      const updated = { ...form, updatedBy: session.panitiaId, updatedAt: now(), cicilanLog: existing.cicilanLog, waLog: existing.waLog };
-      setMudhohi(prev => prev.map(m => m.id === form.id ? updated : m));
-      showToast("Data diperbarui!");
-    }
-    setModal(null);
+      showToast("Data disimpan!");
   };
 
   // BR-MUDHOHI-01: cek duplikat HP (warning)
