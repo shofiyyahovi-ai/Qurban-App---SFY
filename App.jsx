@@ -2031,11 +2031,6 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
         return {
           ...base,
           nama: g(r.row,"nama"),
-          hp: "",
-          alamat: "",
-          jenisHewan: "Domba",
-          bayar: "Lunas",
-          nominal: "0",
           hewanId: "",
           nomorHewan,
           catatan,
