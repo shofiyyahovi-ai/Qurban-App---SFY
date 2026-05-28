@@ -2866,12 +2866,40 @@ export default function App() {
   const prevSesi     = useRef(sesi);
 
   // ── Subscribe to Firestore collections on mount ───────────────
-  useEffect(() => {
+useEffect(() => {
     const unsubs = [
-      fsSubscribe(COL.hewan, data => { setHewanState(data); prevHewan.current = data; markLoaded("hewan"); }),
-      fsSubscribe(COL.mudhohi, data => { setMudhohiState(data); prevMudhohi.current = data; markLoaded("mudhohi"); }),
-      fsSubscribe(COL.mustahiq, data => { setMustahiqState(data); prevMustahiq.current = data; markLoaded("mustahiq"); }),
-      fsSubscribe(COL.sesi, data => { setSesiState(data); prevSesi.current = data; markLoaded("sesi"); }),
+      fsSubscribe(COL.hewan, data => {
+        if (data.length === 0 && SEED_HEWAN.length > 0) {
+          fsReplaceAll(COL.hewan, SEED_HEWAN);
+        } else {
+          setHewanState(data); prevHewan.current = data;
+        }
+        markLoaded("hewan");
+      }),
+      fsSubscribe(COL.mudhohi, data => {
+        if (data.length === 0 && SEED_MUDHOHI.length > 0) {
+          fsReplaceAll(COL.mudhohi, SEED_MUDHOHI);
+        } else {
+          setMudhohiState(data); prevMudhohi.current = data;
+        }
+        markLoaded("mudhohi");
+      }),
+      fsSubscribe(COL.mustahiq, data => {
+        if (data.length === 0 && SEED_MUSTAHIQ.length > 0) {
+          fsReplaceAll(COL.mustahiq, SEED_MUSTAHIQ);
+        } else {
+          setMustahiqState(data); prevMustahiq.current = data;
+        }
+        markLoaded("mustahiq");
+      }),
+      fsSubscribe(COL.sesi, data => {
+        if (data.length === 0 && SEED_SESI.length > 0) {
+          fsReplaceAll(COL.sesi, SEED_SESI);
+        } else {
+          setSesiState(data); prevSesi.current = data;
+        }
+        markLoaded("sesi");
+      }),
     ];
     return () => unsubs.forEach(u => u());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
