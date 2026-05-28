@@ -516,7 +516,7 @@ function SectionTitle({ emoji, title, sub }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 24 }}>{emoji}</span>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.white }}>{title}</h2>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.white, fontFamily: "'Amiri', serif", letterSpacing: 0.3 }}>{title}</h2>
           {sub && <p style={{ margin: 0, fontSize: 13, color: C.muted, marginTop: 2 }}>{sub}</p>}
         </div>
       </div>
@@ -2570,10 +2570,19 @@ const DUMMY_SESSION = { panitiaId: "SYSTEM", panitiaName: "Panitia", role: "admi
 // ── Firebase loading screen ───────────────────────────────────
 function FirebaseLoading() {
   const [theme] = useTheme();
+  useEffect(() => {
+    if (!document.getElementById("qurban-fonts")) {
+      const link = document.createElement("link");
+      link.id = "qurban-fonts";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap";
+      document.head.appendChild(link);
+    }
+  }, []);
   return (
-    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <div style={{ fontSize: 48 }}>🕌</div>
-      <div style={{ fontWeight: 900, fontSize: 18, color: THEMES[theme].white }}>Qurban App</div>
+      <div style={{ fontWeight: 800, fontSize: 20, color: THEMES[theme].white, fontFamily: "'Amiri', serif", letterSpacing: 0.5 }}>Qurban App</div>
       <div style={{ fontSize: 13, color: THEMES[theme].muted }}>⏳ Memuat data dari Firebase...</div>
     </div>
   );
@@ -2669,12 +2678,12 @@ export default function App() {
   if (loading) return <FirebaseLoading />;
 
   return (
-    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: THEMES[theme].text }}>
+    <div style={{ background: THEMES[theme].bg, minHeight: "100vh", fontFamily: "'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif", color: THEMES[theme].text }}>
       {/* Top bar */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
         <span style={{ fontSize: 20, marginRight: 10 }}>🕌</span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: C.white, lineHeight: 1.1 }}>Qurban App</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: C.white, lineHeight: 1.1, fontFamily: "'Amiri', serif", letterSpacing: 0.5 }}>Qurban App</div>
           <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace" }}>{new Date().getFullYear()} M</div>
         </div>
       </div>
