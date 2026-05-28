@@ -1859,7 +1859,7 @@ const IMPORT_SYNONYMS = {
 };
 
 function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session}) {
-  const [tab, setTab] = useState("hewan");
+  const [tab, setTab] = useState("nomorHewan");
   const [step, setStep] = useState("upload"); // upload | mapping | preview
   const [headers, setHeaders] = useState([]);
   const [rawRows, setRawRows] = useState([]);
@@ -1888,6 +1888,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
     setProcessed([]);
     setFilter("all");
     setFileName("");
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   // ── Download template ─────────────────────────────────────────
@@ -1902,10 +1903,95 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
     showToast(`Template ${s.label} diunduh!`);
   };
 
+  // ── PDF text parser for nomorHewan ───────────────────────────
+  const parsePdf = (file) => {
+    const loadPdfJs = () => new Promise((resolve, reject) => {
+      if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error("Gagal memuat PDF.js"));
+      document.head.appendChild(script);
+    });
+
+    showToast("⏳ Membaca PDF...");
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const pdfjsLib = await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+        let fullText = "";
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const content = await page.getTextContent();
+          // Join items with space, add newline between pages
+          fullText += content.items.map(i => i.str).join(" ") + "\n";
+        }
+
+        // ── Parse rows from extracted text ──────────────────────
+        // Pattern: number (1-3 digits) followed by name followed by 3-digit nomor hewan
+        // We look for lines like: "1 Poppy Pudjiastuti binti Moestadhi 001 Perbaikan Nama..."
+        // Strategy: find all occurrences of a row number at start, then extract name + nomor
+        const rows = [];
+        // Match: row_no (1-999), then text (name), then hewan_no (001-999), then optional catatan
+        // Row numbers increment sequentially so we use that as anchor
+        const linePattern = /\b(\d{1,3})\s+([\w][\s\S]{2,80}?)\s+(\d{3})\s*(-|[A-Z][^0-9\n]{0,80})?/g;
+        let match;
+        const seen = new Set();
+        while ((match = linePattern.exec(fullText)) !== null) {
+          const rowNo = parseInt(match[1]);
+          const nama = match[2].trim().replace(/\s+/g, " ");
+          const nomorHewan = match[3];
+          const catatan = (match[4] || "").trim().replace(/^-$/, "");
+          // Skip if rowNo out of plausible range or nama looks like garbage
+          if (rowNo < 1 || rowNo > 999) continue;
+          if (nama.length < 2) continue;
+          // Skip known non-data patterns
+          if (/^(no|nama|nomor|catatan|perbaikan|update|warna|keterangan|datang|shohibul)/i.test(nama)) continue;
+          const key = `${rowNo}-${nomorHewan}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          rows.push([rowNo, nama, nomorHewan, catatan]);
+        }
+
+        if (rows.length === 0) {
+          showToast("Tidak ada data yang berhasil diekstrak dari PDF. Pastikan PDF berisi teks (bukan scan).", "err");
+          return;
+        }
+
+        // Set up as if it were an Excel file with fixed columns: no, nama, nomorHewan, catatan
+        const hdrs = ["No", "Nama Shohibul Qurban", "Nomor Hewan", "Catatan"];
+        setHeaders(hdrs);
+        setRawRows(rows);
+        setFileName(file.name);
+        setColMap({ no: 0, nama: 1, nomorHewan: 2, catatan: 3 });
+        setStep("mapping");
+        showToast(`✅ ${rows.length} data berhasil diekstrak dari PDF!`);
+      } catch (err) {
+        showToast("Gagal membaca PDF: " + err.message, "err");
+      }
+    };
+    reader.onerror = () => showToast("Gagal membaca file.", "err");
+    reader.readAsArrayBuffer(file);
+  };
+
   // ── File parsing ──────────────────────────────────────────────
   const parseFile = (file) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { showToast("File terlalu besar (maks 5MB)", "err"); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast("File terlalu besar (maks 10MB)", "err"); return; }
+    // PDF: only supported for nomorHewan tab
+    if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
+      if (tab !== "nomorHewan") {
+        showToast("❌ Upload PDF hanya didukung di tab Daftar Nomor Hewan.", "err");
+        return;
+      }
+      parsePdf(file);
+      return;
+    }
     const XLSXlib = window.XLSX;
     if (!XLSXlib) { showToast("Library XLSX belum dimuat. Tambahkan CDN di index.html.", "err"); return; }
     const reader = new FileReader();
@@ -1915,36 +2001,60 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSXlib.utils.sheet_to_json(ws, { header: 1, defval: "" });
         if (!data || data.length < 2) { showToast("File kosong atau tidak valid.", "err"); return; }
-        const hdrs = (data[0] || []).map(h => String(h).trim());
-        let rows = data.slice(1).filter(r => r.some(c => c !== ""));
-        // For nomorHewan tab: also skip header-like rows and rows that look like footers
-        // (e.g. "Update terakhir..." rows or rows where nama looks like metadata)
+
+        // ── Smart header detection ──────────────────────────────
+        // Scan first 10 rows to find the actual header row.
+        // For nomorHewan: look for a row containing "nama" and a row containing "nomor" or angka.
+        // For others: use row 0 as before.
+        let headerRowIdx = 0;
+        if (tab === "nomorHewan") {
+          for (let i = 0; i < Math.min(10, data.length); i++) {
+            const rowStr = data[i].map(c => String(c).toLowerCase()).join(" ");
+            if (rowStr.includes("nama") && (rowStr.includes("nomor") || rowStr.includes("hewan") || rowStr.includes("no"))) {
+              headerRowIdx = i;
+              break;
+            }
+          }
+        }
+
+        const hdrs = (data[headerRowIdx] || []).map(h => String(h).trim());
+        const rows = data.slice(headerRowIdx + 1).filter(r => r.some(c => c !== ""));
+
         setHeaders(hdrs);
         setRawRows(rows);
         setFileName(file.name);
-        // Auto-detect mapping
+
+        // ── Auto-detect mapping ─────────────────────────────────
         const map = {};
         schema.fields.forEach(f => {
           const syns = IMPORT_SYNONYMS[f.key] || [f.key];
-          // Try exact match first
+          // Exact match first
           let idx = hdrs.findIndex(h => syns.includes(h.toLowerCase().trim()));
-          // For nomorHewan tab: also try contains matching (handles long headers like "Nama Shohibul Qurban (Domba/Kambing)")
-          if (idx < 0 && tab === "nomorHewan") {
+          // Contains match fallback (for nomorHewan with long/unusual headers)
+          if (idx < 0) {
             if (f.key === "nama") {
-              idx = hdrs.findIndex(h => h.toLowerCase().includes("nama shohibul") || h.toLowerCase().includes("nama peserta") || (h.toLowerCase().includes("nama") && !h.toLowerCase().includes("nomor")));
+              idx = hdrs.findIndex(h => {
+                const hl = h.toLowerCase();
+                return hl.includes("nama") && !hl.includes("nomor") && !hl.includes("no.");
+              });
             } else if (f.key === "nomorHewan") {
-              idx = hdrs.findIndex(h => h.toLowerCase().includes("nomor hewan") || h.toLowerCase().includes("no hewan") || h.toLowerCase().replace(/\s+/g," ").includes("nomor") || (h.toLowerCase().includes("hewan") && !h.toLowerCase().includes("nama")));
+              idx = hdrs.findIndex(h => {
+                const hl = h.toLowerCase().replace(/\s+/g," ").replace(/\n/g," ");
+                return (hl.includes("nomor") || hl.includes("no")) && hl.includes("hewan");
+              });
+              // Last resort: if there's a column with short numeric-looking header like "Nomor\nHewan"
+              if (idx < 0) idx = hdrs.findIndex(h => /nomor[\s\n]*hewan/i.test(h));
             } else if (f.key === "catatan") {
-              idx = hdrs.findIndex(h => h.toLowerCase().includes("catatan") || h.toLowerCase().includes("keterangan") || h.toLowerCase().includes("perbaikan"));
+              idx = hdrs.findIndex(h => h.toLowerCase().includes("catatan") || h.toLowerCase().includes("perbaikan") || h.toLowerCase().includes("keterangan"));
             } else if (f.key === "no") {
-              idx = hdrs.findIndex(h => h.toLowerCase().trim() === "no" || h.toLowerCase().trim() === "no.");
+              idx = hdrs.findIndex(h => /^no\.?$/i.test(h.trim()));
             }
           }
           map[f.key] = idx >= 0 ? idx : -1;
         });
         setColMap(map);
         setStep("mapping");
-        showToast(`${rows.length} baris berhasil dibaca!`);
+        showToast(`${rows.length} baris berhasil dibaca dari baris header ke-${headerRowIdx + 1}!`);
       } catch (err) {
         showToast("Gagal membaca file: " + err.message, "err");
       }
@@ -2119,9 +2229,9 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
             style={{ border: `2px dashed ${dragging ? C.green : C.border}`, borderRadius: 12, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: dragging ? C.greenDark + "22" : "#0A0D09", transition: "all 0.2s" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
             <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>Klik atau drag file ke sini</div>
-            <div style={{ fontSize: 12, color: C.muted }}>.xlsx · .xls · .csv — Maks 5MB</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{tab === "nomorHewan" ? ".xlsx · .xls · .csv · .pdf — Maks 10MB" : ".xlsx · .xls · .csv — Maks 5MB"}</div>
           </div>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={e => parseFile(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept={tab === "nomorHewan" ? ".xlsx,.xls,.csv,.pdf" : ".xlsx,.xls,.csv"} style={{ display: "none" }} onChange={e => { parseFile(e.target.files[0]); e.target.value = ""; }} />
 
           {/* Format guide */}
           <div style={{ marginTop: 16 }}>
@@ -2151,6 +2261,21 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
             </div>
             <Btn color={C.muted} onClick={() => setStep("upload")} style={{ fontSize: 12, padding: "6px 12px" }}>✕ Ganti File</Btn>
           </div>
+
+          {/* Show detected headers */}
+          <div style={{ background: C.border + "33", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 11, color: C.muted }}>
+            <span style={{ color: C.white, fontWeight: 600 }}>Header terdeteksi: </span>
+            {headers.map((h, i) => (
+              <span key={i} style={{ background: C.border, borderRadius: 4, padding: "1px 6px", marginRight: 4, marginBottom: 4, display: "inline-block", color: C.text }}>{h || <em>(kosong)</em>}</span>
+            ))}
+          </div>
+
+          {/* Warning if required fields unmapped */}
+          {schema.fields.filter(f => f.required && (colMap[f.key] === undefined || colMap[f.key] < 0)).length > 0 && (
+            <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: C.red }}>
+              ⚠️ Field wajib belum terpetakan: <strong>{schema.fields.filter(f => f.required && (colMap[f.key] === undefined || colMap[f.key] < 0)).map(f => f.label).join(", ")}</strong>. Pilih kolom yang sesuai dari dropdown di bawah.
+            </div>
+          )}
           {schema.fields.map(f => (
             <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
               <div style={{ minWidth: 160 }}>
