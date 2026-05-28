@@ -338,20 +338,40 @@ const SEED_SESI = [];
 // Theme definitions
 const THEMES = {
   dark: {
-    bg: "#0C0F0A", surface: "#131810", border: "#1E2B1A",
-    green: "#4CAF50", greenDark: "#1B4332", greenLight: "#81C784",
-    gold: "#D4A017", red: "#EF5350", orange: "#FF8F00",
-    blue: "#42A5F5", purple: "#AB47BC", text: "#E8F5E9",
-    muted: "#607D6B", white: "#F1F8F0",
-    inputBg: "#0A0D09",
+    bg:         "#0D0F0D",
+    surface:    "#161A15",
+    surfaceAlt: "#1C211B",
+    border:     "#252E23",
+    green:      "#4CAF50",
+    greenDark:  "#1A2E1A",
+    greenLight: "#81C784",
+    gold:       "#C8960A",
+    red:        "#E53935",
+    orange:     "#F57C00",
+    blue:       "#1E88E5",
+    purple:     "#8E24AA",
+    text:       "#D8EDD8",
+    muted:      "#5A705A",
+    white:      "#EEF5EE",
+    inputBg:    "#0D0F0D",
   },
   light: {
-    bg: "#F4F7F4", surface: "#FFFFFF", border: "#D6E4D6",
-    green: "#2E7D32", greenDark: "#C8E6C9", greenLight: "#1B5E20",
-    gold: "#B8860B", red: "#C62828", orange: "#E65100",
-    blue: "#1565C0", purple: "#6A1B9A", text: "#1A2B1A",
-    muted: "#6A8C6A", white: "#1A2B1A",
-    inputBg: "#F9FBF9",
+    bg:         "#F0F4F0",
+    surface:    "#FFFFFF",
+    surfaceAlt: "#F5F8F5",
+    border:     "#D0DAD0",
+    green:      "#2E7D32",
+    greenDark:  "#E8F5E9",
+    greenLight: "#1B5E20",
+    gold:       "#A67C00",
+    red:        "#C62828",
+    orange:     "#E65100",
+    blue:       "#1565C0",
+    purple:     "#6A1B9A",
+    text:       "#1A261A",
+    muted:      "#5A7A5A",
+    white:      "#1A261A",
+    inputBg:    "#F5F8F5",
   },
 };
 
@@ -387,12 +407,12 @@ const BAYAR_COLOR = { Lunas: C.green, "Belum Lunas": C.red, Cicilan: C.orange };
 const JENIS_COLOR = { Sapi: C.gold, Kambing: C.green, Domba: C.purple };
 const JENIS_EMOJI = { Sapi: "🐄", Kambing: "🐐", Domba: "🐑" };
 const css = {
-  get card() { return { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 12 }; },
-  get input() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box", outline: "none" }; },
-  get select() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 13px", color: C.text, fontSize: 16, width: "100%", boxSizing: "border-box" }; },
-  btn: (bg, color = "#fff") => ({ background: bg, color, border: "none", borderRadius: 8, padding: "11px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14, minHeight: 44, touchAction: "manipulation" }),
-  get label() { return { fontSize: 12, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, display: "block" }; },
-  badge: (color) => ({ background: color + "22", border: `1px solid ${color}44`, color, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 }),
+  get card() { return { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: "16px 20px", marginBottom: 10 }; },
+  get input() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "10px 12px", color: C.text, fontSize: 15, width: "100%", boxSizing: "border-box", outline: "none" }; },
+  get select() { return { background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "10px 12px", color: C.text, fontSize: 15, width: "100%", boxSizing: "border-box" }; },
+  btn: (bg, color = "#fff") => ({ background: bg, color, border: "none", borderRadius: 4, padding: "10px 16px", fontWeight: 600, cursor: "pointer", fontSize: 14, minHeight: 42, touchAction: "manipulation" }),
+  get label() { return { fontSize: 11, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 5, display: "block" }; },
+  badge: (color) => ({ background: color + "1A", border: `1px solid ${color}55`, color, padding: "2px 8px", borderRadius: 3, fontSize: 11, fontWeight: 700 }),
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -442,10 +462,10 @@ function Modal({ children, onClose, title }) {
     return () => { document.body.style.overflow = ""; };
   }, []);
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000000CC", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+    <div style={{ position: "fixed", inset: 0, background: "#00000099", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
       onClick={e => { if (e.target === e.currentTarget) onClose && onClose(); }}>
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "20px 20px 0 0", padding: "20px 20px 32px", width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", position: "relative" }}>
-        <div style={{ width: 40, height: 4, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "6px 6px 0 0", padding: "20px 20px 32px", width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", position: "relative" }}>
+        <div style={{ width: 32, height: 3, background: C.border, borderRadius: 99, margin: "0 auto 16px" }} />
         {title && <h3 style={{ margin: "0 0 20px", color: C.white, fontSize: 17 }}>{title}</h3>}
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: C.muted, fontSize: 22, cursor: "pointer", lineHeight: 1, padding: 4, minHeight: 44, minWidth: 44 }}>✕</button>
         {children}
@@ -458,7 +478,7 @@ function Toast({ msg, type }) {
   if (!msg) return null;
   const isErr = type === "err";
   return (
-    <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", background: isErr ? "#3B0000" : C.greenDark, border: `1px solid ${isErr ? C.red : C.green}`, borderRadius: 10, padding: "12px 20px", color: isErr ? C.red : C.greenLight, fontSize: 14, zIndex: 200, boxShadow: "0 4px 20px #00000088", display: "flex", alignItems: "center", gap: 8, maxWidth: "calc(100vw - 32px)", whiteSpace: "pre-wrap", textAlign: "center" }}>
+    <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", background: isErr ? C.surface : C.surface, border: `1px solid ${isErr ? C.red : C.green}`, borderLeft: `3px solid ${isErr ? C.red : C.green}`, borderRadius: 4, padding: "12px 18px", color: isErr ? C.red : C.green, fontSize: 13, zIndex: 200, boxShadow: "0 2px 12px #00000044", display: "flex", alignItems: "center", gap: 8, maxWidth: "calc(100vw - 32px)", whiteSpace: "pre-wrap", textAlign: "center" }}>
       {isErr ? "⚠️" : "✅"} {msg}
     </div>
   );
@@ -471,7 +491,7 @@ function ConfirmModal({ pesan, detail, onConfirm, onCancel, confirmLabel = "Ya, 
         <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
         <h3 style={{ margin: "0 0 10px", color: C.white }}>Konfirmasi</h3>
         <p style={{ color: C.muted, fontSize: 14, marginBottom: detail ? 8 : 24 }}>{pesan}</p>
-        {detail && <p style={{ color: C.red, fontSize: 13, marginBottom: 24, background: "#3B000033", borderRadius: 8, padding: "8px 12px", border: `1px solid ${C.red}33` }}>{detail}</p>}
+        {detail && <p style={{ color: C.red, fontSize: 13, marginBottom: 24, background: C.red + "18", borderRadius: 4, padding: "8px 12px", border: `1px solid ${C.red}33` }}>{detail}</p>}
         <div style={{ display: "flex", gap: 8 }}>
           <Btn color={confirmColor} onClick={onConfirm} style={{ flex: 1 }}>{confirmLabel}</Btn>
           <Btn color={C.muted} onClick={onCancel} style={{ flex: 1 }}>Batal</Btn>
@@ -752,8 +772,8 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
       {/* ── Alert belum lunas ── */}
       {belumLunas > 0 && (
         <div onClick={() => setPage("mudhohi")} style={{
-          background: "#3B000022", border: `1px solid ${C.red}44`,
-          borderLeft: `4px solid ${C.red}`, borderRadius: 10,
+          background: C.red + "18", border: `1px solid ${C.red}44`,
+          borderLeft: `4px solid ${C.red}`, borderRadius: 5,
           padding: "12px 16px", cursor: "pointer",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
@@ -777,7 +797,7 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
           </div>
           <div style={{
             background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`,
-            borderRadius: 10, padding: "6px 16px", textAlign: "center",
+            borderRadius: 5, padding: "6px 16px", textAlign: "center",
           }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: GOLD, lineHeight: 1 }}>{totalHewan}</div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>ekor</div>
@@ -806,7 +826,7 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
             {statusData.map(s => (
               <div key={s.label} style={{
                 background: s.color + "11", border: `1px solid ${s.color}33`,
-                borderRadius: 8, padding: "10px 14px",
+                borderRadius: 4, padding: "10px 14px",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
               }}>
                 <span style={{ fontSize: 13, color: C.muted }}>{s.label}</span>
@@ -842,7 +862,7 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
           </div>
           <div style={{
             background: C.green + "22", border: `1px solid ${C.green}44`,
-            borderRadius: 10, padding: "6px 16px", textAlign: "center",
+            borderRadius: 5, padding: "6px 16px", textAlign: "center",
           }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: C.greenLight, lineHeight: 1 }}>{mustahiq.length}</div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>orang</div>
@@ -878,15 +898,15 @@ function Dashboard({ hewan, mudhohi, mustahiq, setPage }) {
         onClick={() => setPage("mudhohi")} >
         <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, fontFamily: "monospace", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>💳 Pembayaran Shohibul Qurban</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <div style={{ background: C.green + "11", border: `1px solid ${C.green}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+          <div style={{ background: C.green + "11", border: `1px solid ${C.green}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: C.green }}>{lunas}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Lunas</div>
           </div>
-          <div style={{ background: C.red + "11", border: `1px solid ${C.red}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+          <div style={{ background: C.red + "11", border: `1px solid ${C.red}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: C.red }}>{belumLunas}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Belum Lunas</div>
           </div>
-          <div style={{ background: C.orange + "11", border: `1px solid ${C.orange}33`, borderRadius: 8, padding: "10px", textAlign: "center" }}>
+          <div style={{ background: C.orange + "11", border: `1px solid ${C.orange}33`, borderRadius: 4, padding: "10px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: C.orange }}>{mudhohi.filter(m => m.bayar === "Cicilan").length}</div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Cicilan</div>
           </div>
@@ -1101,7 +1121,7 @@ function HewanPage({ hewan, setHewan, mudhohi, setMudhohi, session }) {
       {/* Modal rollback status (admin only) */}
       {rollbackModal && (
         <Modal onClose={() => { setRollbackModal(null); setRollbackAlasan(""); }} title="↩ Rollback Status Hewan">
-          <div style={{ marginBottom: 14, padding: "10px 14px", background: "#3B0000", borderRadius: 8, border: `1px solid ${C.red}44`, fontSize: 13, color: C.red }}>
+          <div style={{ marginBottom: 14, padding: "10px 14px", background: C.red + "18", borderRadius: 4, border: `1px solid ${C.red}44`, fontSize: 13, color: C.red }}>
             ⚠️ Mundur ke status: <strong>{rollbackModal.targetStatus}</strong>
           </div>
           <Input label="Alasan Rollback (wajib)" value={rollbackAlasan} onChange={setRollbackAlasan} placeholder="Masukkan alasan..." error={!rollbackAlasan.trim() ? "" : ""} />
@@ -1189,12 +1209,12 @@ function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMud
 
   return (
     <Modal onClose={onClose} title="📲 Kirim Notif Penyembelihan">
-      <div style={{ padding: "10px 14px", background: "#0A0D09", borderRadius: 10, border: `1px solid ${STATUS_COLOR[statusHewan] || C.border}44`, marginBottom: 16 }}>
+      <div style={{ padding: "10px 14px", background: C.inputBg, borderRadius: 5, border: `1px solid ${STATUS_COLOR[statusHewan] || C.border}44`, marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: C.muted }}>Status Hewan</div>
         <div style={{ fontWeight: 700, color: STATUS_COLOR[statusHewan] || C.text }}>{statusHewan}</div>
         <div style={{ fontSize: 12, color: C.muted }}>{hewanObj?.nama || "-"}</div>
       </div>
-      <div style={{ marginBottom: 14, padding: "10px 14px", background: "#0A0D09", borderRadius: 10, border: `1px solid ${C.border}` }}>
+      <div style={{ marginBottom: 14, padding: "10px 14px", background: C.inputBg, borderRadius: 5, border: `1px solid ${C.border}` }}>
         <div style={{ fontSize: 11, color: C.muted }}>DIKIRIM KE</div>
         <div style={{ fontWeight: 700, color: C.white }}>{m.nama}</div>
         <div style={{ fontSize: 12, color: C.muted }}>📱 {m.hp}</div>
@@ -1203,17 +1223,17 @@ function NotifSembelihModal({ mudhohi: m, hewanObj, fonnteToken, session, setMud
         <label style={css.label}>Foto (opsional, maks 2MB)</label>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleFoto} style={{ display: "none" }} />
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => fileRef.current.click()} style={{ ...css.btn("#0A0D09", C.muted), border: `1px dashed ${C.border}`, fontSize: 12, padding: "9px 14px", flex: 1 }}>📷 {foto ? "Ganti Foto" : "Pilih Foto"}</button>
+          <button onClick={() => fileRef.current.click()} style={{ ...css.btn(C.inputBg, C.muted), border: `1px dashed ${C.border}`, fontSize: 12, padding: "9px 14px", flex: 1 }}>📷 {foto ? "Ganti Foto" : "Pilih Foto"}</button>
           {foto && <button onClick={() => { setFoto(null); setFotoPreview(null); }} style={{ ...css.btn(C.red + "22", C.red), border: `1px solid ${C.red}44`, fontSize: 12, padding: "9px 12px" }}>✕</button>}
         </div>
-        {fotoPreview && <img src={fotoPreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 8, marginTop: 8 }} />}
+        {fotoPreview && <img src={fotoPreview} alt="preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 4, marginTop: 8 }} />}
       </div>
       <div style={{ marginBottom: 14 }}>
         <label style={css.label}>Pesan WA</label>
         <textarea value={pesanCustom || defaultPesan} onChange={e => setPesanCustom(e.target.value)} rows={5} style={{ ...css.input, resize: "vertical", lineHeight: 1.6, fontSize: 13 }} />
         {pesanCustom && <button onClick={() => setPesanCustom("")} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, marginTop: 2 }}>↩ Reset ke default</button>}
       </div>
-      {result && <div style={{ marginBottom: 14, padding: "10px 13px", background: result.ok ? C.greenDark : "#3B0000", border: `1px solid ${result.ok ? C.green : C.red}`, borderRadius: 8, fontSize: 13, color: result.ok ? C.greenLight : C.red }}>{result.msg}</div>}
+      {result && <div style={{ marginBottom: 14, padding: "10px 13px", background: result.ok ? C.green + "18" : C.red + "18", border: `1px solid ${result.ok ? C.green : C.red}`, borderRadius: 4, fontSize: 13, color: result.ok ? C.green : C.red }}>{result.msg}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <Btn color={C.green} onClick={send} disabled={sending} style={{ flex: 1 }}>{sending ? "⏳ Mengirim..." : "📲 Kirim WA"}</Btn>
         <Btn color={C.muted} onClick={onClose} style={{ flex: 1 }}>Tutup</Btn>
@@ -1428,16 +1448,16 @@ function MudhohiPage({ mudhohi, setMudhohi, hewan, fonnteToken, session}) {
             <Select label="Jenis Qurban" value={form.jenisHewan} onChange={handleJenisChange} options={JENIS_HEWAN} />
             {hewanOptions.length > 0
               ? <Select label={`Pilih ${form.jenisHewan}`} value={form.hewanId} onChange={v => setForm(p => ({ ...p, hewanId: v }))} options={hewanOptions} />
-              : <div style={{ background: "#3B0000", border: `1px solid ${C.red}44`, borderRadius: 8, padding: "10px 13px", color: C.red, fontSize: 13, marginBottom: 14 }}>⚠️ Belum ada {form.jenisHewan.toLowerCase()} terdaftar.</div>
+              : <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 4, padding: "10px 13px", color: C.red, fontSize: 13, marginBottom: 14 }}>⚠️ Belum ada {form.jenisHewan.toLowerCase()} terdaftar.</div>
             }
             <Select label="Status Bayar" value={form.bayar} onChange={v => setForm(p => ({ ...p, bayar: v }))} options={["Lunas", "Belum Lunas", "Cicilan"]} />
             <Input label="Nominal Bayar (Rp)" type="number" value={form.nominal} onChange={v => setForm(p => ({ ...p, nominal: v }))} error={errors.nominal} hint={hewanObj ? `Harga ${hewanObj.jenis}: Rp ${Number(hewanObj.harga).toLocaleString("id")}` : ""} />
             {modal === "add" && fonnteToken && (
               <div style={{ marginBottom: 14 }}>
-                <button onClick={() => setWaPreview(v => !v)} style={{ background: "none", border: `1px solid ${C.green}44`, borderRadius: 8, padding: "6px 12px", color: C.greenLight, cursor: "pointer", fontSize: 12 }}>
+                <button onClick={() => setWaPreview(v => !v)} style={{ background: "none", border: `1px solid ${C.green}44`, borderRadius: 4, padding: "6px 12px", color: C.greenLight, cursor: "pointer", fontSize: 12 }}>
                   {waPreview ? "Sembunyikan" : "👁 Preview"} pesan WA
                 </button>
-                {waPreview && <div style={{ marginTop: 8, background: "#0A0D09", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 13px", fontSize: 12, color: C.text, whiteSpace: "pre-line", lineHeight: 1.6 }}>{buildWAMsg()}</div>}
+                {waPreview && <div style={{ marginTop: 8, background: C.inputBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "10px 13px", fontSize: 12, color: C.text, whiteSpace: "pre-line", lineHeight: 1.6 }}>{buildWAMsg()}</div>}
               </div>
             )}
             {modal === "add" && fonnteToken ? (
@@ -1669,7 +1689,7 @@ function MustahiqPage({ mustahiq, setMustahiq, sesi, setSesi, session}) {
       {tab === "sesi" && (
         <>
           {sesiWarning && (
-            <div style={{ background: "#3B0000", border: `1px solid ${C.red}`, borderRadius: 8, padding: "10px 14px", color: C.red, fontSize: 13, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ background: C.red + "18", border: `1px solid ${C.red}`, borderRadius: 4, padding: "10px 14px", color: C.red, fontSize: 13, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>⚠️ {sesiWarning}</span>
               <button onClick={() => setSesiWarning("")} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
@@ -2193,7 +2213,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {Object.entries(IMPORT_SCHEMAS).map(([key, s]) => (
           <button key={key} onClick={() => switchTab(key)}
-            style={{ ...css.btn(tab === key ? C.greenDark : C.surface, tab === key ? C.greenLight : C.muted), border: `1px solid ${tab === key ? C.green : C.border}`, fontSize: 13 }}>
+            style={{ ...css.btn(tab === key ? C.greenDark : C.surface, tab === key ? C.green : C.muted), border: `1px solid ${tab === key ? C.green : C.border}`, fontSize: 13 }}>
             {s.emoji} {s.label}
           </button>
         ))}
@@ -2216,7 +2236,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
       {step === "upload" && (
         <div style={css.card}>
           {tab === "nomorHewan" && (
-            <div style={{ background: C.blue + "18", border: `1px solid ${C.blue}44`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.blue }}>
+            <div style={{ background: C.blue + "18", border: `1px solid ${C.blue}44`, borderRadius: 4, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: C.blue }}>
               ℹ️ <strong>Format Daftar Nomor Hewan</strong> — cocok untuk file Excel dari e-kwitansi qurban (seperti Masjid Mutiara Sunnah). Kolom yang dikenali: <em>No, Nama Shohibul Qurban, Nomor Hewan, Catatan</em>. Data akan masuk sebagai <strong>Shohibul Qurban</strong> dengan field nomor hewan.
             </div>
           )}
@@ -2226,7 +2246,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
             onDragOver={e => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); parseFile(e.dataTransfer.files[0]); }}
-            style={{ border: `2px dashed ${dragging ? C.green : C.border}`, borderRadius: 12, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: dragging ? C.greenDark + "22" : "#0A0D09", transition: "all 0.2s" }}>
+            style={{ border: `2px dashed ${dragging ? C.green : C.border}`, borderRadius: 6, padding: "40px 20px", textAlign: "center", cursor: "pointer", background: dragging ? C.greenDark + "22" : C.inputBg, transition: "all 0.2s" }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
             <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>Klik atau drag file ke sini</div>
             <div style={{ fontSize: 12, color: C.muted }}>{tab === "nomorHewan" ? ".xlsx · .xls · .csv · .pdf — Maks 10MB" : ".xlsx · .xls · .csv — Maks 5MB"}</div>
@@ -2263,7 +2283,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
           </div>
 
           {/* Show detected headers */}
-          <div style={{ background: C.border + "33", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 11, color: C.muted }}>
+          <div style={{ background: C.border + "33", borderRadius: 4, padding: "8px 12px", marginBottom: 14, fontSize: 11, color: C.muted }}>
             <span style={{ color: C.white, fontWeight: 600 }}>Header terdeteksi: </span>
             {headers.map((h, i) => (
               <span key={i} style={{ background: C.border, borderRadius: 4, padding: "1px 6px", marginRight: 4, marginBottom: 4, display: "inline-block", color: C.text }}>{h || <em>(kosong)</em>}</span>
@@ -2272,7 +2292,7 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
 
           {/* Warning if required fields unmapped */}
           {schema.fields.filter(f => f.required && (colMap[f.key] === undefined || colMap[f.key] < 0)).length > 0 && (
-            <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: C.red }}>
+            <div style={{ background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 4, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: C.red }}>
               ⚠️ Field wajib belum terpetakan: <strong>{schema.fields.filter(f => f.required && (colMap[f.key] === undefined || colMap[f.key] < 0)).map(f => f.label).join(", ")}</strong>. Pilih kolom yang sesuai dari dropdown di bawah.
             </div>
           )}
@@ -2333,15 +2353,15 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
             </div>
 
             {/* Tabel */}
-            <div style={{ overflowX: "auto", borderRadius: 8, border: `1px solid ${C.border}` }}>
+            <div style={{ overflowX: "auto", borderRadius: 4, border: `1px solid ${C.border}` }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr>
-                    <th style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>#</th>
+                    <th style={{ background: C.surfaceAlt, color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>#</th>
                     {visibleFields.map(f => (
-                      <th key={f.key} style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>{f.label}</th>
+                      <th key={f.key} style={{ background: C.surfaceAlt, color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" }}>{f.label}</th>
                     ))}
-                    <th style={{ background: "#0A0D09", color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}` }}>Status</th>
+                    <th style={{ background: C.surfaceAlt, color: C.muted, fontSize: 11, padding: "9px 12px", textAlign: "left", borderBottom: `1px solid ${C.border}` }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2397,32 +2417,32 @@ function SettingsPage({ session, hewan, mudhohi, mustahiq, sesi, setHewan, setMu
       <div style={css.card}>
         <div style={{ fontWeight: 700, color: C.white, marginBottom: 4 }}>🎨 Tampilan</div>
         <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Pilih tema tampilan aplikasi sesuai preferensi kamu.</div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => handleThemeChange("dark")}
             style={{
-              flex: 1, padding: "14px 10px", borderRadius: 10,
+              flex: 1, padding: "14px 10px", borderRadius: 4,
               border: `2px solid ${theme === "dark" ? C.green : C.border}`,
               background: theme === "dark" ? C.greenDark : C.inputBg,
               cursor: "pointer", display: "flex", flexDirection: "column",
               alignItems: "center", gap: 6, transition: "all 0.15s",
             }}>
-            <span style={{ fontSize: 24 }}>🌙</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "dark" ? C.greenLight : C.muted }}>Dark Mode</span>
-            {theme === "dark" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+            <span style={{ fontSize: 22 }}>🌙</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "dark" ? C.green : C.muted }}>Dark Mode</span>
+            {theme === "dark" && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>✓ Aktif</span>}
           </button>
           <button
             onClick={() => handleThemeChange("light")}
             style={{
-              flex: 1, padding: "14px 10px", borderRadius: 10,
+              flex: 1, padding: "14px 10px", borderRadius: 4,
               border: `2px solid ${theme === "light" ? C.green : C.border}`,
               background: theme === "light" ? C.greenDark : C.inputBg,
               cursor: "pointer", display: "flex", flexDirection: "column",
               alignItems: "center", gap: 6, transition: "all 0.15s",
             }}>
-            <span style={{ fontSize: 24 }}>☀️</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "light" ? C.greenLight : C.muted }}>Light Mode</span>
-            {theme === "light" && <span style={{ fontSize: 10, color: C.green }}>● Aktif</span>}
+            <span style={{ fontSize: 22 }}>☀️</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: theme === "light" ? C.green : C.muted }}>Light Mode</span>
+            {theme === "light" && <span style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>✓ Aktif</span>}
           </button>
         </div>
       </div>
@@ -2651,22 +2671,22 @@ export default function App() {
   return (
     <div style={{ background: THEMES[theme].bg, minHeight: "100vh", fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif", color: THEMES[theme].text }}>
       {/* Top bar */}
-      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 14px", display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-        <span style={{ fontSize: 20, marginRight: 8 }}>🕌</span>
-        <div>
-          <div style={{ fontWeight: 900, fontSize: 14, color: C.white, lineHeight: 1.1 }}>Qurban App</div>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
+        <span style={{ fontSize: 20, marginRight: 10 }}>🕌</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 14, color: C.white, lineHeight: 1.1 }}>Qurban App</div>
           <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace" }}>{new Date().getFullYear()} M</div>
         </div>
       </div>
 
       {/* Nav */}
-      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ background: C.surface, borderBottom: `2px solid ${C.border}` }}>
         <div ref={navRef} style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none" }}>
           {NAV.map(n => (
             <button key={n.id} data-active={page === n.id ? "true" : "false"} onClick={() => setPage(n.id)}
-              style={{ flex: "1 0 auto", background: page === n.id ? C.greenDark : "transparent", border: "none", color: page === n.id ? C.greenLight : C.muted, padding: "10px 4px 8px", cursor: "pointer", fontSize: 10, borderBottom: page === n.id ? `2px solid ${C.green}` : "2px solid transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, transition: "all 0.15s", minHeight: 52, minWidth: 48, touchAction: "manipulation" }}>
+              style={{ flex: "1 0 auto", background: "transparent", border: "none", color: page === n.id ? C.green : C.muted, padding: "10px 4px 8px", cursor: "pointer", fontSize: 10, borderBottom: page === n.id ? `2px solid ${C.green}` : "2px solid transparent", marginBottom: -2, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, transition: "color 0.15s, border-color 0.15s", minHeight: 52, minWidth: 48, touchAction: "manipulation" }}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>{n.emoji}</span>
-              <span style={{ whiteSpace: "nowrap" }}>{n.label}</span>
+              <span style={{ whiteSpace: "nowrap", fontWeight: page === n.id ? 700 : 400 }}>{n.label}</span>
             </button>
           ))}
         </div>
