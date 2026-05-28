@@ -1853,9 +1853,9 @@ const IMPORT_SYNONYMS = {
   rt:         ["rt","rt/rw","rtrw","rt / rw"],
   anggota:    ["anggota","jumlah anggota kk","anggota kk","jumlah anggota","kk","jumlah kk"],
   sesi:       ["sesi","sesi pengambilan","waktu ambil","jadwal"],
-  no:         ["no","no.","nomor","no urut","no. urut","number"],
-  nomorHewan: ["nomor hewan","no hewan","no. hewan","hewan no","animal no","kode hewan","id hewan","nomor","no"],
-  catatan:    ["catatan","catatan / perbaikan nama","keterangan","notes","note","info","perbaikan"],
+  no:         ["no","no.","no urut","no. urut","number"],
+  nomorHewan: ["nomor hewan","no hewan","no. hewan","hewan no","animal no","kode hewan","id hewan","nomor\nhewan"],
+  catatan:    ["catatan","catatan / perbaikan nama","catatan/perbaikan nama","keterangan","notes","note","info","perbaikan"],
 };
 
 function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahiq, session}) {
@@ -1916,7 +1916,9 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
         const data = XLSXlib.utils.sheet_to_json(ws, { header: 1, defval: "" });
         if (!data || data.length < 2) { showToast("File kosong atau tidak valid.", "err"); return; }
         const hdrs = (data[0] || []).map(h => String(h).trim());
-        const rows = data.slice(1).filter(r => r.some(c => c !== ""));
+        let rows = data.slice(1).filter(r => r.some(c => c !== ""));
+        // For nomorHewan tab: also skip header-like rows and rows that look like footers
+        // (e.g. "Update terakhir..." rows or rows where nama looks like metadata)
         setHeaders(hdrs);
         setRawRows(rows);
         setFileName(file.name);
@@ -1924,7 +1926,20 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
         const map = {};
         schema.fields.forEach(f => {
           const syns = IMPORT_SYNONYMS[f.key] || [f.key];
-          const idx = hdrs.findIndex(h => syns.includes(h.toLowerCase().trim()));
+          // Try exact match first
+          let idx = hdrs.findIndex(h => syns.includes(h.toLowerCase().trim()));
+          // For nomorHewan tab: also try contains matching (handles long headers like "Nama Shohibul Qurban (Domba/Kambing)")
+          if (idx < 0 && tab === "nomorHewan") {
+            if (f.key === "nama") {
+              idx = hdrs.findIndex(h => h.toLowerCase().includes("nama shohibul") || h.toLowerCase().includes("nama peserta") || (h.toLowerCase().includes("nama") && !h.toLowerCase().includes("nomor")));
+            } else if (f.key === "nomorHewan") {
+              idx = hdrs.findIndex(h => h.toLowerCase().includes("nomor hewan") || h.toLowerCase().includes("no hewan") || h.toLowerCase().replace(/\s+/g," ").includes("nomor") || (h.toLowerCase().includes("hewan") && !h.toLowerCase().includes("nama")));
+            } else if (f.key === "catatan") {
+              idx = hdrs.findIndex(h => h.toLowerCase().includes("catatan") || h.toLowerCase().includes("keterangan") || h.toLowerCase().includes("perbaikan"));
+            } else if (f.key === "no") {
+              idx = hdrs.findIndex(h => h.toLowerCase().trim() === "no" || h.toLowerCase().trim() === "no.");
+            }
+          }
           map[f.key] = idx >= 0 ? idx : -1;
         });
         setColMap(map);
@@ -1961,8 +1976,9 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
     } else if (tab === "mustahiq") {
       if (!g("nama")) errors.push("Nama wajib");
     } else if (tab === "nomorHewan") {
-      if (!g("nama")) errors.push("Nama shohibul qurban wajib");
-      if (!g("nomorHewan")) errors.push("Nomor hewan wajib");
+      if (!g("nama") || g("nama").toLowerCase().startsWith("update terakhir")) errors.push("Nama shohibul qurban wajib");
+      const nomorRaw = g("nomorHewan").replace(/\D/g, ""); // strip non-digits
+      if (!nomorRaw || isNaN(Number(nomorRaw))) errors.push("Nomor hewan wajib");
     }
     return errors;
   };
@@ -2023,9 +2039,8 @@ function ImportPage({ hewan, setHewan, mudhohi, setMudhohi, mustahiq, setMustahi
       } else if (tab === "mudhohi") {
         return { ...base, nama: g(r.row,"nama"), hp: g(r.row,"hp").replace(/\s/g,""), alamat: g(r.row,"alamat"), jenisHewan: capitalize(g(r.row,"jenisHewan")), bayar: fixBayar(g(r.row,"bayar")), nominal: g(r.row,"nominal"), hewanId: "", cicilanLog: [], waLog: [] };
       } else if (tab === "nomorHewan") {
-        const nomorRaw = g(r.row,"nomorHewan").trim();
-        // Normalize: strip leading zeros then re-pad to 3 digits
-        const nomorHewan = nomorRaw.replace(/^0+/, "").padStart(3, "0") || nomorRaw;
+        const nomorRaw = g(r.row,"nomorHewan").replace(/\D/g, ""); // strip non-digits
+        const nomorHewan = String(Number(nomorRaw)).padStart(3, "0");
         const catatanRaw = g(r.row,"catatan").trim();
         const catatan = (catatanRaw === "-" || catatanRaw === "") ? "" : catatanRaw;
         return {
